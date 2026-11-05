@@ -309,8 +309,8 @@ function desenhar(){
       <small>ATENDIMENTO COMERCIAL</small>
       <h4>ATENDIMENTO</h4>
       ${item('painel','Painel',paraAtender().length)}${item('contatos','Contatos')}
-      <h4>CADASTROS</h4>
-      ${item('vendedoras','Vendedoras e praças')}${gestao?item('equipe','Equipe',pendentes):''}
+      ${gestao?'<h4>CADASTROS</h4>':''}
+      ${gestao?item('vendedoras','Vendedoras e praças')+item('equipe','Equipe',pendentes):''}
       <div class="conta"><b>${esc(S.me.nome||S.me.email)}</b><button data-a="sair">Sair</button></div>
     </aside>
     <main>
@@ -323,7 +323,7 @@ function desenhar(){
     </main></div>`;
   desenharTela();
 }
-function desenharTela(){ ({painel:telaPainel, contatos:telaContatos, vendedoras:telaVendedoras, equipe:telaEquipe})[S.tela](); }
+function desenharTela(){ if(S.me.papel!=='gestao' && ['vendedoras','equipe'].includes(S.tela)) S.tela='painel'; ({painel:telaPainel, contatos:telaContatos, vendedoras:telaVendedoras, equipe:telaEquipe})[S.tela](); }
 
 // ---------- painel
 function noPeriodo(ts){
@@ -423,7 +423,7 @@ function formContato(c){
     <div><label for="c_email">E-mail</label><input id="c_email" type="email" value="${esc(c.email)}"></div>
     <div><label for="c_cidade">Cidade</label><input id="c_cidade" value="${esc(c.cidade)}"></div>
     <div><label for="c_uf">UF</label><select id="c_uf"><option value=""></option>${UFS.map(u=>`<option ${u===c.uf?'selected':''}>${u}</option>`).join('')}</select></div>
-    <div><label for="c_praca">Praça</label><select id="c_praca"><option value=""></option>${opcoes(Object.fromEntries(pracasPara(c.praca_id).map(p=>[p.id,p.nome])),c.praca_id)}</select></div>
+    <div><label for="c_praca">Praça</label><select id="c_praca"><option value="">${pracasPara(c.praca_id).length?'Escolha a praça':'Nenhuma praça cadastrada'}</option>${opcoes(Object.fromEntries(pracasPara(c.praca_id).map(p=>[p.id,p.nome])),c.praca_id)}</select></div>
     <div><label for="c_origem">Como chegou</label><select id="c_origem">${opcoes(ORIGENS,c.origem)}</select></div>
     <div class="largo"><label for="c_interesse">Interesse</label><select id="c_interesse"><option value=""></option>${opcoes(INTERESSES,c.interesse)}</select></div>
     <div class="largo"><label for="c_obs">O que o cliente precisa</label><textarea id="c_obs">${esc(c.observacoes)}</textarea></div>
@@ -458,7 +458,13 @@ function formContato(c){
 }
 
 // ---------- ficha
+// Praças e vendedoras criadas pela gestão aparecem sem a SDR precisar recarregar a página.
+async function atualizarCadastros(){
+  try { [S.vendedoras,S.pracas] = await Promise.all([tudo('vendedoras','nome',true), tudo('pracas','nome',true)]); }
+  catch(e){ aviso(mensagemErro(e)); }
+}
 async function abrirFicha(id){
+  await atualizarCadastros();
   if($('janela').open) $('janela').close();
   S.aberto=id; S.historico=[]; desenharFicha();
   if(!$('ficha').open) $('ficha').showModal();
@@ -607,11 +613,11 @@ const acoes={
   trocaEntrada:()=>{ S.modoEntrada=S.modoEntrada==='criar'?'entrar':'criar'; telaEntrada(); },
   tela:v=>{ S.tela=v; desenhar(); },
   periodo:v=>{ S.periodo=v; telaPainel(); },
-  novoContato:()=>formContato(),
+  novoContato:async()=>{ await atualizarCadastros(); formContato(); },
   abrir:v=>abrirFicha(v),
   fecharFicha:()=>{ $('ficha').close(); S.aberto=null; },
   fecharJanela:()=>$('janela').close(),
-  editar:()=>{ const c=S.contatos.find(x=>x.id===S.aberto); $('ficha').close(); formContato(c); },
+  editar:async()=>{ const c=S.contatos.find(x=>x.id===S.aberto); $('ficha').close(); await atualizarCadastros(); formContato(c); },
   retorno:v=>mudar(v==='sim'?{teve_retorno:true,status:'atendimento',retornar_em:null}:{teve_retorno:false,status:'sem_retorno',avaliacao:null,retornar_em:maisDias(1)}),
   avaliar:v=>mudar({avaliacao:v}),
   encaminhar:async()=>{
