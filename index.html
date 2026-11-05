@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hub SDR · Open Soluções Tributárias</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0A2742; --navy:#073B64; --blue:#0E6EA8; --azure:#2BA3E3; --pill:#5AA7E6;
+  --sky:#EAF2FA; --bg:#F4F7FB; --line:#E3E9F0; --muted:#66768A; --white:#fff;
+  --bom:#0B7A6E; --bom-bg:#DDF4F0; --medio:#92590A; --medio-bg:#FDF0D8; --ruim:#B00E28; --ruim-bg:#FCE4E7;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font:14px/1.45 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);background:var(--bg)}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3,p{margin:0}
+.hidden{display:none!important}
+.app{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100vh}
+
+/* menu */
+.menu{background:var(--white);border-right:1px solid var(--line);padding:18px 14px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column}
+.menu .marca img{width:132px;display:block}
+.menu .sub{display:flex;align-items:center;gap:6px;margin-top:12px;font-weight:800}
+.tag{background:var(--pill);color:#06233C;font-size:10px;font-weight:800;letter-spacing:.06em;padding:2px 7px;border-radius:7px}
+.menu small{display:block;color:var(--muted);font-size:9.5px;font-weight:700;letter-spacing:.14em;margin-top:5px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.menu h4{margin:18px 8px 6px;color:var(--muted);font-size:10px;letter-spacing:.14em}
+.menu button.item{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;background:none;border:0;padding:9px 10px;border-radius:10px;font-weight:600;color:#3B4C60;cursor:pointer}
+.menu button.item:hover{background:var(--bg)}
+.menu button.item.on{background:var(--sky);color:var(--navy);font-weight:700}
+.menu .conta{margin-top:auto;border-top:1px solid var(--line);padding-top:12px;font-size:12.5px}
+.menu .conta b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.menu .conta button{background:none;border:0;padding:0;color:var(--blue);font-weight:600;cursor:pointer;margin-top:3px}
+.badge{min-width:20px;text-align:center;background:var(--navy);color:#fff;font-size:11px;font-weight:700;border-radius:10px;padding:1px 6px}
+
+/* faixa */
+main{padding:20px 22px 40px;min-width:0}
+.faixa{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:20px;padding:20px 24px;border-radius:16px;color:#fff;background:linear-gradient(100deg,#0A1B2E 0%,#0C2A47 45%,#1E4F8C 100%);border-bottom:3px solid #2F6DB5;box-shadow:0 6px 18px rgba(10,39,66,.16)}
+.faixa .esq{display:flex;align-items:center;gap:20px;min-width:0}
+.faixa img{height:50px;display:block}
+.faixa .div{width:1px;height:46px;background:rgba(255,255,255,.22)}
+.faixa .rot{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:800;letter-spacing:.2em}
+.faixa h1{font-size:21px;font-weight:800;margin-top:5px}
+.faixa .dir{text-align:right;font-size:12px;font-weight:700;flex:none}
+.faixa .dir small{display:block;font-size:9.5px;letter-spacing:.16em;color:#B8CBE0;margin:6px 0 8px}
+.salvo{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.28);background:rgba(255,255,255,.1);padding:4px 11px;border-radius:14px;font-size:11.5px;font-weight:600}
+.salvo i{width:6px;height:6px;border-radius:50%;background:#4ADE80}
+.salvo.ocupado i{background:#FBBF24}.salvo.erro i{background:#F87171}
+
+/* barra e pílulas */
+.barra{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:16px 0}
+.barra .rotulo{font-size:11px;font-weight:800;letter-spacing:.1em;color:#3B4C60}
+.pilulas{display:inline-flex;background:#fff;border:1px solid var(--line);padding:3px;border-radius:20px}
+.pilulas button{background:none;border:0;padding:6px 14px;border-radius:16px;font-size:12.5px;font-weight:600;color:#3B4C60;cursor:pointer}
+.pilulas button.on{background:var(--navy);color:#fff}
+.btn{background:#fff;border:1px solid var(--line);padding:7px 14px;border-radius:18px;font-size:12.5px;font-weight:600;color:var(--navy);cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--blue)}
+.btn.pri{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn.pri:hover{background:var(--blue);border-color:var(--blue)}
+.btn.perigo{color:var(--ruim)}
+.btn:disabled{opacity:.5;cursor:default}
+.dir-auto{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+input,select,textarea{width:100%;background:#fff;border:1px solid #CBD6E2;border-radius:9px;padding:8px 10px}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--azure);outline-offset:1px}
+textarea{resize:vertical;min-height:62px}
+.barra input,.barra select{width:auto;border-radius:18px;padding:7px 12px;font-size:12.5px}
+.barra input[type=search]{min-width:230px}
+
+/* números e cartões */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.kpi,.cartao{background:#fff;border:1px solid var(--line);border-radius:14px}
+.kpi{padding:14px 16px}
+.kpi span{display:block;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.kpi b{display:block;font-size:28px;font-weight:800;margin-top:3px;font-variant-numeric:tabular-nums}
+.kpi small{color:var(--muted);font-size:12px}
+.dupla{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
+.cartao{padding:15px 16px;min-width:0}
+.cartao>h2{font-size:13.5px;font-weight:800;margin-bottom:10px}
+.cartao>h2 small{font-weight:500;color:var(--muted);font-size:12px;margin-left:4px}
+.bar{display:grid;grid-template-columns:minmax(90px,32%) 1fr 30px;align-items:center;gap:9px;padding:5px 0;font-size:13px}
+.bar .nome{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .trilho{height:12px;display:flex;align-items:center}
+.bar .trilho i{display:block;height:12px;min-width:3px;background:var(--blue);border-radius:0 4px 4px 0}
+.bar b{text-align:right;font-variant-numeric:tabular-nums}
+.vazio{color:var(--muted);padding:18px 6px;text-align:center}
+
+/* tabelas */
+.tabela{width:100%;border-collapse:collapse}
+.tabela th{text-align:left;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tabela td{padding:10px 12px;border-bottom:1px solid #EEF2F6;vertical-align:middle}
+.tabela tr:last-child td{border-bottom:0}
+.tabela tbody tr.link{cursor:pointer}
+.tabela tbody tr.link:hover{background:#F7FAFD}
+.tabela td small{display:block;color:var(--muted)}
+.rolagem{overflow-x:auto;background:#fff;border:1px solid var(--line);border-radius:14px}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:11px;white-space:nowrap;background:var(--sky);color:var(--navy)}
+.chip.st-sem_retorno,.chip.av-medio{background:var(--medio-bg);color:var(--medio)}
+.chip.st-encaminhado,.chip.av-bom{background:var(--bom-bg);color:var(--bom)}
+.chip.st-descartado{background:#EDF0F4;color:#4F5F72}
+.chip.av-ruim{background:var(--ruim-bg);color:var(--ruim)}
+.atrasado{color:var(--ruim);font-weight:700}
+
+/* janelas */
+dialog{border:0;padding:0;color:var(--ink);box-shadow:0 18px 50px rgba(10,39,66,.3)}
+dialog::backdrop{background:rgba(10,27,46,.45)}
+dialog.form{width:min(620px,94vw);border-radius:16px}
+dialog.lateral{margin:0 0 0 auto;height:100vh;max-height:100vh;width:min(560px,100vw);border-radius:16px 0 0 16px}
+.corpo{padding:20px 22px}
+.corpo h3{font-size:17px;font-weight:800}
+.corpo .sub{color:var(--muted);font-size:13px;margin:2px 0 14px}
+.grade{display:grid;grid-template-columns:1fr 1fr;gap:11px 12px}
+.grade .largo{grid-column:1/-1}
+label{display:block;font-size:12px;font-weight:600;color:#3B4C60;margin-bottom:3px}
+.acoes{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;flex-wrap:wrap}
+.aviso{background:var(--medio-bg);color:#6F4306;border-radius:10px;padding:9px 12px;margin-top:12px;font-size:13px}
+.erro-msg{color:var(--ruim);font-size:13px;margin-top:10px}
+
+/* ficha do contato */
+.ficha-topo{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.ficha-topo h3{font-size:19px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+.fechar{background:none;border:0;font-size:22px;line-height:1;color:var(--muted);cursor:pointer;padding:2px 6px}
+.dados{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin-top:14px;font-size:13px}
+.dados .largo{grid-column:1/-1}
+.dados span{display:block;color:var(--muted);font-size:11px;font-weight:600}
+.dados a{color:var(--blue);font-weight:600;word-break:break-all}
+.etapa{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:12px}
+.etapa h4{margin:0 0 8px;font-size:13.5px}
+.etapa.foco{border-color:var(--azure);background:#F4FAFE}
+.opcoes{display:flex;gap:7px;flex-wrap:wrap}
+.opcoes .btn.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.linha{display:flex;gap:9px;align-items:flex-end;margin-top:10px}
+.linha>div{flex:1;min-width:0}
+.hist{list-style:none;margin:10px 0 0;padding:0}
+.hist li{border-left:2px solid var(--line);padding:0 0 12px 12px;font-size:13px}
+.hist li.sis{color:var(--muted)}
+.hist small{display:block;color:var(--muted);font-size:11.5px}
+
+/* entrada */
+.entrada{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(120deg,#0A1B2E,#0C2A47 50%,#1E4F8C)}
+.entrada .caixa{width:min(390px,100%);background:#fff;border-radius:16px;padding:26px}
+.entrada img{width:170px;display:block;margin-bottom:6px}
+.entrada h1{font-size:18px;font-weight:800;margin:14px 0 2px}
+.entrada p{color:var(--muted);font-size:13px;margin-bottom:14px}
+.entrada label{margin-top:10px}
+.entrada .btn{width:100%;margin-top:15px;padding:10px}
+.entrada .troca{background:none;border:0;color:var(--blue);font-weight:600;cursor:pointer;display:block;margin:12px auto 0}
+
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;z-index:50;max-width:90vw}
+
+@media (max-width:980px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .dupla{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  .app{display:block}
+  .menu{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:4px;padding:10px 12px;border-right:0;border-bottom:1px solid var(--line)}
+  .menu .marca{width:100%}.menu .marca img{width:104px}
+  .menu .sub,.menu small,.menu h4{display:none}
+  .menu button.item{width:auto;gap:6px;padding:7px 9px}
+  .menu .conta{margin:0 0 0 auto;border:0;padding:0}.menu .conta b{display:none}
+  main{padding:12px}
+  .faixa{padding:15px}.faixa .dir,.faixa .div{display:none}.faixa img{height:38px}.faixa h1{font-size:18px}
+  .grade,.dados{grid-template-columns:1fr}
+  .barra input[type=search]{min-width:0;width:100%}
+  dialog.lateral{border-radius:0}
+}
+</style>
+</head>
+<body>
+<div id="raiz"></div>
+<dialog id="ficha" class="lateral"></dialog>
+<dialog id="janela" class="form"></dialog>
+<div id="toast" class="hidden" role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// Chave pública do Supabase. Ela sozinha não lê nada: as regras de acesso ficam no banco.
+const SUPABASE_URL = 'https://sirepfbcdhtbvwcninpt.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_IXPq2TNoJZKqBf9VXmFh3Q__bc89Sff';
+
+const STATUS = {novo:'Novo', atendimento:'Em atendimento', sem_retorno:'Sem retorno', encaminhado:'Encaminhado', descartado:'Descartado'};
+const AVALIACAO = {bom:'Bom', medio:'Médio', ruim:'Ruim'};
+const ORIGENS = {site:'Site', instagram:'Instagram', linkedin:'LinkedIn', youtube:'YouTube', whatsapp:'WhatsApp', telefone:'Telefone', email:'E-mail', indicacao:'Indicação', evento:'Evento', prospeccao:'Prospecção ativa', rdstation:'RD Station', outro:'Outro'};
+const INTERESSES = {sistema:'Sistema', consultoria:'Consultoria', publicos:'Órgãos Públicos', cursos:'Cursos', renovacoes:'Renovações'};
+const MOTIVOS = ['Fora do perfil','Sem interesse','Sem orçamento','Já é cliente','Fechou com concorrente','Contato inválido','Nunca respondeu','Outro'];
+const TIPOS = {ligacao:'Ligação', whatsapp:'WhatsApp', email:'E-mail', nota:'Anotação'};
+const UFS = 'AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO'.split(' ');
+const TITULOS = {painel:'Painel do SDR', contatos:'Contatos', vendedoras:'Vendedoras e praças', equipe:'Equipe'};
+
+const sb = (SUPABASE_URL || window.__MOCK) ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+const S = {uid:null, me:null, membros:[], vendedoras:[], pracas:[], contatos:[], tela:'painel', periodo:'mes',
+           filtro:{busca:'', status:'abertos', avaliacao:'', vendedora:'', praca:''}, aberto:null, historico:[], modoEntrada:'entrar'};
+
+const $ = id => document.getElementById(id);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const opcoes = (mapa, sel) => Object.entries(mapa).map(([k,v]) => `<option value="${esc(k)}" ${k===sel?'selected':''}>${esc(v)}</option>`).join('');
+const pad = n => String(n).padStart(2,'0');
+const isoDia = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const hoje = () => isoDia(new Date());
+const maisDias = n => { const d = new Date(); d.setDate(d.getDate()+n); return isoDia(d); };
+const dia = iso => iso ? iso.slice(0,10).split('-').reverse().join('/') : '';
+const quando = ts => { if(!ts) return ''; const d = new Date(ts); return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const digitos = t => { let d = String(t||'').replace(/\D/g,''); if(d.length>=12 && d.startsWith('55')) d = d.slice(2); return d; };
+const semAcento = t => String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const vazioNull = o => { for(const k in o) if(o[k]==='') o[k]=null; return o; };
+const vendedora = id => S.vendedoras.find(v => v.id===id);
+const praca = id => S.pracas.find(p => p.id===id);
+const membro = id => { const m = S.membros.find(x => x.user_id===id); return m ? (m.nome || m.email) : ''; };
+
+function aviso(msg){ const t=$('toast'); t.textContent=msg; t.classList.remove('hidden'); clearTimeout(aviso.t); aviso.t=setTimeout(()=>t.classList.add('hidden'),4200); }
+function salvando(estado){ const e=document.querySelector('.salvo'); if(!e) return; e.className='salvo '+(estado==='ocupado'?'ocupado':estado==='erro'?'erro':''); e.lastChild.textContent = estado==='ocupado'?'salvando':estado==='erro'?'não salvo':'salvo'; }
+function mensagemErro(e){
+  const m = e?.message || String(e);
+  if(/contatos_tem_meio/.test(m)) return 'Informe um telefone ou um e-mail.';
+  if(/contatos_encaminhado/.test(m)) return 'Para encaminhar, escolha a vendedora e avalie o cliente.';
+  if(/contatos_descarte/.test(m)) return 'Informe o motivo do descarte.';
+  if(/pracas_nome_key|duplicate/.test(m)) return 'Já existe uma praça com esse nome.';
+  if(/foreign key|violates/.test(m)) return 'Não foi possível: este cadastro está ligado a contatos. Use "Desativar".';
+  if(/Failed to fetch|NetworkError/.test(m)) return 'Sem conexão. Tente de novo.';
+  if(/Invalid login/.test(m)) return 'E-mail ou senha incorretos.';
+  if(/already registered/.test(m)) return 'Este e-mail já tem conta. Use "Entrar".';
+  if(/rate limit/.test(m)) return 'Muitas tentativas. Aguarde alguns minutos.';
+  if(/Password should/.test(m)) return 'A senha precisa ter pelo menos 6 caracteres.';
+  return m;
+}
+
+// ---------- dados
+async function tudo(tabela, ordem, asc){
+  const linhas = []; const passo = 1000;
+  for(let de=0;;de+=passo){
+    const {data,error} = await sb.from(tabela).select('*').order(ordem,{ascending:asc}).range(de,de+passo-1);
+    if(error) throw error;
+    linhas.push(...data);
+    if(data.length<passo) return linhas;
+  }
+}
+async function carregar(){
+  [S.membros,S.vendedoras,S.pracas,S.contatos] = await Promise.all([
+    tudo('membros','criado_em',true), tudo('vendedoras','nome',true), tudo('pracas','nome',true), tudo('contatos','criado_em',false)]);
+  S.me = S.membros.find(m => m.user_id===S.uid) || null;
+}
+async function gravar(acao){
+  salvando('ocupado');
+  try { const {data,error} = await acao(); if(error) throw error; salvando('ok'); return data ?? true; }
+  catch(e){ salvando('erro'); aviso(mensagemErro(e)); return null; }
+}
+
+// ---------- entrada
+async function iniciar(){
+  if(!sb) return telaMensagem('Plataforma ainda não conectada','Falta informar o endereço e a chave pública do Supabase no index.html.');
+  const {data} = await sb.auth.getSession();
+  await aoEntrar(data.session);
+}
+async function aoEntrar(sessao){
+  if(!sessao) { S.uid=null; return telaEntrada(); }
+  S.uid = sessao.user.id;
+  const {data,error} = await sb.from('membros').select('*').eq('user_id',S.uid).maybeSingle();
+  if(error) return telaMensagem('Não foi possível abrir',mensagemErro(error),true);
+  if(!data?.ativo) return telaMensagem('Aguardando liberação',`A conta ${sessao.user.email} foi criada. Peça à gestão para liberar seu acesso na aba Equipe.`,true);
+  try { await carregar(); desenhar(); }
+  catch(e){ telaMensagem('Não foi possível carregar',mensagemErro(e),true); }
+}
+function telaMensagem(titulo,texto,sair){
+  $('raiz').innerHTML = `<div class="entrada"><div class="caixa"><img src="assets/LOGOOPEN.webp" alt="Open Soluções Tributárias"><h1>${esc(titulo)}</h1><p>${esc(texto)}</p>${sair?'<button class="btn" data-a="sair">Sair</button>':''}</div></div>`;
+}
+function telaEntrada(){
+  const criar = S.modoEntrada==='criar';
+  $('raiz').innerHTML = `<div class="entrada"><form class="caixa" id="fmEntrada">
+    <img src="assets/LOGOOPEN.webp" alt="Open Soluções Tributárias">
+    <h1>${criar?'Criar conta':'Hub SDR'}</h1>
+    <p>${criar?'Depois de criar, a gestão libera seu acesso.':'Atendimento e encaminhamento de contatos.'}</p>
+    ${criar?'<label for="e_nome">Seu nome</label><input id="e_nome" required autocomplete="name">':''}
+    <label for="e_email">E-mail</label><input id="e_email" type="email" required autocomplete="email">
+    <label for="e_senha">Senha</label><input id="e_senha" type="password" required minlength="6" autocomplete="${criar?'new-password':'current-password'}">
+    <div class="erro-msg hidden" id="e_erro"></div>
+    <button class="btn pri" type="submit">${criar?'Criar conta':'Entrar'}</button>
+    <button class="troca" type="button" data-a="trocaEntrada">${criar?'Já tenho conta':'Primeiro acesso? Criar conta'}</button>
+  </form></div>`;
+  $('fmEntrada').onsubmit = async ev => {
+    ev.preventDefault();
+    const email=$('e_email').value.trim(), password=$('e_senha').value, b=ev.target.querySelector('[type=submit]');
+    b.disabled=true;
+    const r = criar ? await sb.auth.signUp({email,password,options:{data:{nome:$('e_nome').value.trim()}}})
+                    : await sb.auth.signInWithPassword({email,password});
+    b.disabled=false;
+    if(r.error){ const e=$('e_erro'); e.textContent=mensagemErro(r.error); e.classList.remove('hidden'); return; }
+    if(r.data.session) await aoEntrar(r.data.session);
+    else telaMensagem('Confirme seu e-mail','Abra o link enviado para o seu e-mail e depois entre.',false);
+  };
+}
+
+// ---------- estrutura
+function paraAtender(){
+  const h = hoje();
+  return S.contatos.filter(c => c.status==='novo' || (['atendimento','sem_retorno'].includes(c.status) && c.retornar_em && c.retornar_em<=h))
+    .sort((a,b) => (a.retornar_em||a.criado_em.slice(0,10)).localeCompare(b.retornar_em||b.criado_em.slice(0,10)));
+}
+function desenhar(){
+  const gestao = S.me.papel==='gestao';
+  const pendentes = S.membros.filter(m => !m.ativo).length;
+  const item = (t,rot,n) => `<button class="item ${S.tela===t?'on':''}" data-a="tela" data-v="${t}"><span>${rot}</span>${n?`<span class="badge">${n}</span>`:''}</button>`;
+  $('raiz').innerHTML = `<div class="app">
+    <aside class="menu">
+      <div class="marca"><img src="assets/LOGOOPEN.webp" alt="Open Soluções Tributárias"></div>
+      <div class="sub"><span class="tag">HUB</span> SDR</div>
+      <small>ATENDIMENTO COMERCIAL</small>
+      <h4>ATENDIMENTO</h4>
+      ${item('painel','Painel',paraAtender().length)}${item('contatos','Contatos')}
+      <h4>CADASTROS</h4>
+      ${item('vendedoras','Vendedoras e praças')}${gestao?item('equipe','Equipe',pendentes):''}
+      <div class="conta"><b>${esc(S.me.nome||S.me.email)}</b><button data-a="sair">Sair</button></div>
+    </aside>
+    <main>
+      <header class="faixa">
+        <div class="esq"><img src="assets/logo-open-branca.png" alt="Open Soluções Tributárias"><span class="div"></span>
+          <div><div class="rot"><span class="tag">HUB</span> SDR</div><h1>${TITULOS[S.tela]}</h1></div></div>
+        <div class="dir">Controle de contatos e encaminhamentos<small>EXERCÍCIO DE ${new Date().getFullYear()}</small><span class="salvo"><i></i>salvo</span></div>
+      </header>
+      <div id="tela"></div>
+    </main></div>`;
+  desenharTela();
+}
+function desenharTela(){ ({painel:telaPainel, contatos:telaContatos, vendedoras:telaVendedoras, equipe:telaEquipe})[S.tela](); }
+
+// ---------- painel
+function noPeriodo(ts){
+  const d = isoDia(new Date(ts)), agora = new Date();
+  if(S.periodo==='hoje') return d===hoje();
+  if(S.periodo==='semana') return d>=maisDias(-6);
+  if(S.periodo==='mes') return d.slice(0,7)===hoje().slice(0,7);
+  const ant = new Date(agora.getFullYear(),agora.getMonth()-1,1);
+  return d.slice(0,7)===isoDia(ant).slice(0,7);
+}
+function barras(linhas){
+  if(!linhas.length) return '<div class="vazio">Nada neste período.</div>';
+  const max = Math.max(...linhas.map(l=>l[1]));
+  return linhas.map(([n,v]) => `<div class="bar" title="${esc(n)}: ${v}"><span class="nome">${esc(n)}</span><span class="trilho"><i style="width:${v/max*100}%"></i></span><b>${v}</b></div>`).join('');
+}
+function contar(lista,chave){ const m=new Map(); lista.forEach(c=>{const k=chave(c); if(k) m.set(k,(m.get(k)||0)+1)}); return [...m].sort((a,b)=>b[1]-a[1]); }
+function telaPainel(){
+  const noMes = S.contatos.filter(c=>noPeriodo(c.criado_em));
+  const enc = S.contatos.filter(c=>c.encaminhado_em && noPeriodo(c.encaminhado_em));
+  const comRetorno = noMes.filter(c=>c.teve_retorno).length, bons = noMes.filter(c=>c.avaliacao==='bom').length;
+  const pct = (a,b) => b ? Math.round(a/b*100)+'%' : '0%';
+  const fila = paraAtender(), h = hoje();
+  const P = {hoje:'Hoje',semana:'7 dias',mes:'Este mês',anterior:'Mês passado'};
+  $('tela').innerHTML = `
+  <div class="barra"><span class="rotulo">PERÍODO:</span>
+    <div class="pilulas">${Object.entries(P).map(([k,v])=>`<button class="${S.periodo===k?'on':''}" data-a="periodo" data-v="${k}">${v}</button>`).join('')}</div>
+    <div class="dir-auto"><button class="btn pri" data-a="novoContato">+ Novo contato</button></div></div>
+  <div class="kpis">
+    <div class="kpi"><span>Contatos recebidos</span><b>${noMes.length}</b><small>cadastrados no período</small></div>
+    <div class="kpi"><span>Tiveram retorno</span><b>${comRetorno}</b><small>${pct(comRetorno,noMes.length)} dos recebidos</small></div>
+    <div class="kpi"><span>Clientes bons</span><b>${bons}</b><small>${pct(bons,noMes.length)} dos recebidos</small></div>
+    <div class="kpi"><span>Encaminhados</span><b>${enc.length}</b><small>para as vendedoras</small></div>
+  </div>
+  <div class="cartao" style="margin-top:12px"><h2>Para atender agora <small>${fila.length} ${fila.length===1?'contato':'contatos'}</small></h2>
+    ${fila.length?`<div style="overflow-x:auto"><table class="tabela"><thead><tr><th>Contato</th><th>Situação</th><th>Origem</th><th>Quando</th></tr></thead><tbody>
+    ${fila.slice(0,12).map(c=>`<tr class="link" data-a="abrir" data-v="${c.id}"><td><b>${esc(c.nome)}</b><small>${esc(c.empresa||c.telefone||c.email)}</small></td><td><span class="chip st-${c.status}">${STATUS[c.status]}</span></td><td>${esc(ORIGENS[c.origem]||c.origem)}</td>
+      <td>${c.retornar_em?`<span class="${c.retornar_em<h?'atrasado':''}">${c.retornar_em<h?'Atrasado: ':'Retornar hoje'}${c.retornar_em<h?dia(c.retornar_em):''}</span>`:'Chegou '+esc(quando(c.criado_em))}</td></tr>`).join('')}
+    </tbody></table></div>`:'<div class="vazio">Tudo em dia. Nenhum contato esperando atendimento.</div>'}
+  </div>
+  <div class="dupla">
+    <div class="cartao"><h2>Encaminhados por vendedora</h2>${barras(contar(enc,c=>vendedora(c.vendedora_id)?.nome))}</div>
+    <div class="cartao"><h2>Contatos por origem</h2>${barras(contar(noMes,c=>ORIGENS[c.origem]||c.origem))}</div>
+  </div>`;
+}
+
+// ---------- contatos
+function filtrados(){
+  const f=S.filtro, q=semAcento(f.busca), qd=digitos(f.busca);
+  return S.contatos.filter(c=>{
+    if(f.status==='abertos' ? ['encaminhado','descartado'].includes(c.status) : (f.status && c.status!==f.status)) return false;
+    if(f.avaliacao && c.avaliacao!==f.avaliacao) return false;
+    if(f.vendedora && c.vendedora_id!==f.vendedora) return false;
+    if(f.praca && c.praca_id!==f.praca) return false;
+    if(q && !semAcento([c.nome,c.empresa,c.email,c.cidade].join(' ')).includes(q) && !(qd && digitos(c.telefone).includes(qd))) return false;
+    return true;
+  });
+}
+function telaContatos(){
+  const f=S.filtro, mapa = l => Object.fromEntries(l.map(x=>[x.id,x.nome]));
+  $('tela').innerHTML = `
+  <div class="barra">
+    <input type="search" id="f_busca" placeholder="Buscar nome, empresa, telefone" aria-label="Buscar" value="${esc(f.busca)}">
+    <select data-f="status" aria-label="Situação"><option value="abertos" ${f.status==='abertos'?'selected':''}>Em aberto</option><option value="" ${f.status===''?'selected':''}>Todas as situações</option>${opcoes(STATUS,f.status)}</select>
+    <select data-f="avaliacao" aria-label="Avaliação"><option value="">Toda avaliação</option>${opcoes(AVALIACAO,f.avaliacao)}</select>
+    <select data-f="vendedora" aria-label="Vendedora"><option value="">Toda vendedora</option>${opcoes(mapa(S.vendedoras),f.vendedora)}</select>
+    <select data-f="praca" aria-label="Praça"><option value="">Toda praça</option>${opcoes(mapa(S.pracas),f.praca)}</select>
+    <div class="dir-auto"><button class="btn pri" data-a="novoContato">+ Novo contato</button></div>
+  </div><div id="lista"></div>`;
+  $('f_busca').oninput = e => { f.busca=e.target.value; lista(); };
+  document.querySelectorAll('[data-f]').forEach(s => s.onchange = e => { f[e.target.dataset.f]=e.target.value; lista(); });
+  lista();
+}
+function lista(){
+  const l = filtrados(), h=hoje();
+  $('lista').innerHTML = l.length ? `<div class="rolagem"><table class="tabela"><thead><tr><th>Contato</th><th>Local</th><th>Situação</th><th>Avaliação</th><th>Vendedora</th><th>Chegou</th></tr></thead><tbody>
+  ${l.map(c=>`<tr class="link" data-a="abrir" data-v="${c.id}"><td><b>${esc(c.nome)}</b><small>${esc(c.empresa||c.telefone||c.email)}</small></td>
+    <td>${esc([c.cidade,c.uf].filter(Boolean).join(' / '))}<small>${esc(praca(c.praca_id)?.nome)}</small></td>
+    <td><span class="chip st-${c.status}">${STATUS[c.status]}</span>${c.retornar_em&&!['encaminhado','descartado'].includes(c.status)?`<small class="${c.retornar_em<h?'atrasado':''}">retornar ${dia(c.retornar_em)}</small>`:''}</td>
+    <td>${c.avaliacao?`<span class="chip av-${c.avaliacao}">${AVALIACAO[c.avaliacao]}</span>`:'<small>Sem avaliação</small>'}</td>
+    <td>${esc(vendedora(c.vendedora_id)?.nome)}</td><td>${dia(isoDia(new Date(c.criado_em)))}</td></tr>`).join('')}
+  </tbody></table></div>` : `<div class="cartao"><div class="vazio">${S.contatos.length?'Nenhum contato com esses filtros.':'Nenhum contato ainda. Clique em "+ Novo contato" para lançar o primeiro.'}</div></div>`;
+}
+function pracasPara(selecionada){ return S.pracas.filter(p=>p.ativa||p.id===selecionada); }
+function vendedorasPara(selecionada){ return S.vendedoras.filter(v=>v.ativa||v.id===selecionada); }
+function duplicado(dados, ignorar){
+  const t=digitos(dados.telefone), e=semAcento(dados.email).trim();
+  return S.contatos.find(c => c.id!==ignorar && ((t.length>=8 && digitos(c.telefone)===t) || (e && semAcento(c.email).trim()===e)));
+}
+function formContato(c){
+  const novo=!c; c=c||{origem:'whatsapp'};
+  const j=$('janela');
+  j.innerHTML = `<form class="corpo" id="fmContato"><h3>${novo?'Novo contato':'Editar contato'}</h3><p class="sub">Informe ao menos o nome e um telefone ou e-mail.</p>
+  <div class="grade">
+    <div><label for="c_nome">Nome *</label><input id="c_nome" required value="${esc(c.nome)}"></div>
+    <div><label for="c_empresa">Empresa ou órgão</label><input id="c_empresa" value="${esc(c.empresa)}"></div>
+    <div><label for="c_telefone">Telefone / WhatsApp</label><input id="c_telefone" inputmode="tel" value="${esc(c.telefone)}"></div>
+    <div><label for="c_email">E-mail</label><input id="c_email" type="email" value="${esc(c.email)}"></div>
+    <div><label for="c_cidade">Cidade</label><input id="c_cidade" value="${esc(c.cidade)}"></div>
+    <div><label for="c_uf">UF</label><select id="c_uf"><option value=""></option>${UFS.map(u=>`<option ${u===c.uf?'selected':''}>${u}</option>`).join('')}</select></div>
+    <div><label for="c_praca">Praça</label><select id="c_praca"><option value=""></option>${opcoes(Object.fromEntries(pracasPara(c.praca_id).map(p=>[p.id,p.nome])),c.praca_id)}</select></div>
+    <div><label for="c_origem">Como chegou</label><select id="c_origem">${opcoes(ORIGENS,c.origem)}</select></div>
+    <div class="largo"><label for="c_interesse">Interesse</label><select id="c_interesse"><option value=""></option>${opcoes(INTERESSES,c.interesse)}</select></div>
+    <div class="largo"><label for="c_obs">O que o cliente precisa</label><textarea id="c_obs">${esc(c.observacoes)}</textarea></div>
+  </div>
+  <div id="c_dup"></div><div class="erro-msg hidden" id="c_erro"></div>
+  <div class="acoes"><button class="btn" type="button" data-a="fecharJanela">Cancelar</button><button class="btn pri" type="submit">${novo?'Cadastrar':'Salvar'}</button></div></form>`;
+  $('c_uf').onchange = e => {
+    if($('c_praca').value) return;
+    const m = S.pracas.filter(p=>p.ativa&&p.ufs.includes(e.target.value));
+    if(m.length===1) $('c_praca').value=m[0].id;
+  };
+  let confirmado=false;
+  $('fmContato').onsubmit = async ev => {
+    ev.preventDefault();
+    const d = vazioNull({nome:$('c_nome').value.trim(),empresa:$('c_empresa').value.trim(),telefone:$('c_telefone').value.trim(),email:$('c_email').value.trim(),
+      cidade:$('c_cidade').value.trim(),uf:$('c_uf').value,praca_id:$('c_praca').value,origem:$('c_origem').value,interesse:$('c_interesse').value,observacoes:$('c_obs').value.trim()});
+    const erro=$('c_erro');
+    if(!d.telefone&&!d.email){ erro.textContent='Informe um telefone ou um e-mail.'; erro.classList.remove('hidden'); return; }
+    erro.classList.add('hidden');
+    const dup = duplicado(d,c.id);
+    if(dup&&!confirmado){
+      confirmado=true;
+      $('c_dup').innerHTML=`<div class="aviso">Já existe <b>${esc(dup.nome)}</b> com esse telefone ou e-mail (${STATUS[dup.status]}). <button class="btn" type="button" data-a="abrir" data-v="${dup.id}">Abrir o existente</button> Ou clique de novo para cadastrar assim mesmo.</div>`;
+      return;
+    }
+    const salvo = await gravar(()=> novo ? sb.from('contatos').insert(d).select().single() : sb.from('contatos').update(d).eq('id',c.id).select().single());
+    if(!salvo) return;
+    if(novo) S.contatos.unshift(salvo); else S.contatos[S.contatos.findIndex(x=>x.id===c.id)]=salvo;
+    j.close(); desenhar(); abrirFicha(salvo.id);
+  };
+  j.showModal();
+}
+
+// ---------- ficha
+async function abrirFicha(id){
+  if($('janela').open) $('janela').close();
+  S.aberto=id; S.historico=[]; desenharFicha();
+  if(!$('ficha').open) $('ficha').showModal();
+  await lerHistorico();
+}
+async function lerHistorico(){
+  const id=S.aberto;
+  const {data,error} = await sb.from('interacoes').select('*').eq('contato_id',id).order('criado_em',{ascending:false});
+  if(error) return aviso(mensagemErro(error));
+  if(id===S.aberto){ S.historico=data; const h=$('historico'); if(h) h.innerHTML=linhasHistorico(); }
+}
+function linhasHistorico(){
+  return S.historico.map(i=>`<li class="${i.tipo==='sistema'?'sis':''}">${i.tipo==='sistema'?'':`<b>${TIPOS[i.tipo]}:</b> `}${esc(i.texto)}<small>${esc(quando(i.criado_em))}${membro(i.criado_por)?' · '+esc(membro(i.criado_por)):''}</small></li>`).join('');
+}
+const opcoesPracas = sel => `<option value="">Sem praça</option>`+opcoes(Object.fromEntries(pracasPara(sel).map(p=>[p.id,p.nome])),sel);
+const opcoesVendedoras = sel => `<option value="">Escolha a vendedora</option>`+opcoes(Object.fromEntries(vendedorasPara(sel).map(v=>[v.id,v.nome])),sel);
+function blocoEncaminhar(c){
+  const sugerida = c.vendedora_id || praca(c.praca_id)?.vendedora_id || '';
+  const motivo = `<div class="linha"><div><label for="m_motivo">Não segue. Motivo:</label><select id="m_motivo"><option value=""></option>${MOTIVOS.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div><button class="btn perigo" data-a="descartar">Descartar</button></div>`;
+  return {motivo, seguir:`<div class="linha"><div><label for="m_praca">Praça</label><select id="m_praca">${opcoesPracas(c.praca_id)}</select></div><div><label for="m_vend">Vendedora</label><select id="m_vend">${opcoesVendedoras(sugerida)}</select></div></div>
+    <div class="acoes" style="margin-top:10px"><button class="btn pri" data-a="encaminhar">Seguir para a vendedora</button></div>`};
+}
+function desenharFicha(){
+  const c=S.contatos.find(x=>x.id===S.aberto); if(!c) return;
+  const v=vendedora(c.vendedora_id), gestao=S.me.papel==='gestao', b=blocoEncaminhar(c);
+  const tel=digitos(c.telefone);
+  const aberto=!['encaminhado','descartado'].includes(c.status);
+  let etapas='';
+  if(aberto){
+    etapas=`<div class="etapa ${c.teve_retorno==null?'foco':''}"><h4>1. Teve retorno do cliente?</h4><div class="opcoes">
+      <button class="btn ${c.teve_retorno===true?'on':''}" data-a="retorno" data-v="sim">Sim</button><button class="btn ${c.teve_retorno===false?'on':''}" data-a="retorno" data-v="nao">Ainda não</button></div>
+      ${c.teve_retorno===false?`<div class="linha"><div><label for="m_data">Tentar de novo em</label><input type="date" id="m_data" value="${esc(c.retornar_em)}"></div></div>${b.motivo}`:''}</div>`;
+    if(c.teve_retorno) etapas+=`<div class="etapa ${!c.avaliacao?'foco':''}"><h4>2. O cliente é bom?</h4><div class="opcoes">
+      ${Object.entries(AVALIACAO).map(([k,n])=>`<button class="btn ${c.avaliacao===k?'on':''}" data-a="avaliar" data-v="${k}">${n}</button>`).join('')}</div></div>`;
+    if(c.teve_retorno&&c.avaliacao) etapas+=`<div class="etapa foco"><h4>3. Vai seguir para a dona da praça?</h4>${b.seguir}${b.motivo}</div>`;
+  } else if(c.status==='encaminhado'){
+    etapas=`<div class="etapa"><h4>Encaminhado para ${esc(v?.nome)}</h4><div style="font-size:13px;color:var(--muted)">${esc(praca(c.praca_id)?.nome||'Sem praça')} · ${esc(quando(c.encaminhado_em))}${membro(c.encaminhado_por)?' · por '+esc(membro(c.encaminhado_por)):''}</div>
+      <div class="opcoes" style="margin-top:10px"><button class="btn pri" data-a="whats">Avisar pelo WhatsApp</button><button class="btn" data-a="reabrir">Reabrir atendimento</button></div>
+      <div class="linha"><div><label for="m_vend">Trocar a vendedora</label><select id="m_vend">${opcoesVendedoras(c.vendedora_id)}</select></div><button class="btn" data-a="trocar">Trocar</button></div></div>`;
+  } else {
+    etapas=`<div class="etapa"><h4>Descartado: ${esc(c.motivo_descarte)}</h4><div class="opcoes"><button class="btn" data-a="reabrir">Reabrir atendimento</button></div></div>`;
+  }
+  $('ficha').innerHTML=`<div class="corpo">
+    <div class="ficha-topo"><div><h3>${esc(c.nome)}</h3>${c.empresa?`<div style="color:var(--muted)">${esc(c.empresa)}</div>`:''}
+      <div class="chips"><span class="chip st-${c.status}">${STATUS[c.status]}</span>${c.avaliacao?`<span class="chip av-${c.avaliacao}">Cliente ${AVALIACAO[c.avaliacao].toLowerCase()}</span>`:''}</div></div>
+      <button class="fechar" data-a="fecharFicha" aria-label="Fechar">×</button></div>
+    <div class="dados">
+      ${c.telefone?`<div><span>Telefone</span><a href="${tel.length>=10?'https://wa.me/55'+tel:'tel:'+esc(tel)}" target="_blank" rel="noopener">${esc(c.telefone)}</a></div>`:''}
+      ${c.email?`<div><span>E-mail</span><a href="mailto:${esc(c.email)}">${esc(c.email)}</a></div>`:''}
+      ${c.cidade||c.uf?`<div><span>Local</span>${esc([c.cidade,c.uf].filter(Boolean).join(' / '))}</div>`:''}
+      <div><span>Como chegou</span>${esc(ORIGENS[c.origem]||c.origem)}</div>
+      ${c.interesse?`<div><span>Interesse</span>${esc(INTERESSES[c.interesse]||c.interesse)}</div>`:''}
+      <div><span>Cadastrado</span>${esc(quando(c.criado_em))}${membro(c.criado_por)?' · '+esc(membro(c.criado_por)):''}</div>
+      ${c.observacoes?`<div class="largo"><span>O que o cliente precisa</span>${esc(c.observacoes)}</div>`:''}
+    </div>
+    ${etapas}
+    <div class="etapa"><h4>Registrar atendimento</h4>
+      <div class="linha" style="margin-top:0"><div style="flex:0 0 130px"><label for="h_tipo">Tipo</label><select id="h_tipo">${opcoes(TIPOS,'ligacao')}</select></div><div><label for="h_texto">O que aconteceu</label><input id="h_texto" maxlength="1000"></div><button class="btn" data-a="registrar">Registrar</button></div>
+      <ul class="hist" id="historico">${linhasHistorico()}</ul></div>
+    <div class="acoes"><button class="btn" data-a="editar">Editar dados</button>${gestao?'<button class="btn perigo" data-a="excluir">Excluir contato</button>':''}</div>
+  </div>`;
+  const data=$('m_data'); if(data) data.onchange=e=>mudar({retornar_em:e.target.value||null});
+  const mp=$('m_praca'); if(mp) mp.onchange=e=>{ const d=praca(e.target.value)?.vendedora_id; if(d&&vendedora(d)?.ativa) $('m_vend').value=d; };
+}
+async function mudar(patch){
+  const id=S.aberto;
+  const salvo=await gravar(()=>sb.from('contatos').update(patch).eq('id',id).select().single());
+  if(!salvo) return false;
+  S.contatos[S.contatos.findIndex(x=>x.id===id)]=salvo;
+  desenharFicha(); desenharTela(); await lerHistorico();
+  return true;
+}
+function mensagemWhats(c,v){
+  const l=[`Olá, ${v.nome}! Novo contato para você seguir:`,'',`Cliente: ${c.nome}`];
+  if(c.empresa) l.push(`Empresa: ${c.empresa}`);
+  if(c.telefone) l.push(`Telefone: ${c.telefone}`);
+  if(c.email) l.push(`E-mail: ${c.email}`);
+  if(c.cidade||c.uf) l.push(`Local: ${[c.cidade,c.uf].filter(Boolean).join(' / ')}`);
+  if(c.interesse) l.push(`Interesse: ${INTERESSES[c.interesse]||c.interesse}`);
+  l.push(`Avaliação do SDR: ${AVALIACAO[c.avaliacao]}`);
+  if(c.observacoes) l.push(`Necessidade: ${c.observacoes}`);
+  return l.join('\n');
+}
+
+// ---------- vendedoras e praças
+function telaVendedoras(){
+  const gestao=S.me.papel==='gestao';
+  const contagem=id=>S.contatos.filter(c=>c.vendedora_id===id).length;
+  $('tela').innerHTML=`<div class="dupla" style="margin-top:16px">
+  <div class="cartao"><h2>Vendedoras ${gestao?'<button class="btn" style="float:right" data-a="novaVendedora">+ Vendedora</button>':''}</h2>
+    ${S.vendedoras.length?`<div style="overflow-x:auto"><table class="tabela"><thead><tr><th>Nome</th><th>Praças</th><th>Recebidos</th></tr></thead><tbody>
+    ${S.vendedoras.map(v=>`<tr class="${gestao?'link':''}" ${gestao?`data-a="editarVendedora" data-v="${v.id}"`:''}><td><b>${esc(v.nome)}</b><small>${esc(v.telefone||v.email)}${v.ativa?'':' · Inativa'}</small></td><td>${esc(S.pracas.filter(p=>p.vendedora_id===v.id).map(p=>p.nome).join(', '))}</td><td>${contagem(v.id)}</td></tr>`).join('')}
+    </tbody></table></div>`:'<div class="vazio">Cadastre as vendedoras que recebem os contatos.</div>'}</div>
+  <div class="cartao"><h2>Praças ${gestao?'<button class="btn" style="float:right" data-a="novaPraca">+ Praça</button>':''}</h2>
+    ${S.pracas.length?`<div style="overflow-x:auto"><table class="tabela"><thead><tr><th>Praça</th><th>Estados</th><th>Dona</th></tr></thead><tbody>
+    ${S.pracas.map(p=>`<tr class="${gestao?'link':''}" ${gestao?`data-a="editarPraca" data-v="${p.id}"`:''}><td><b>${esc(p.nome)}</b>${p.ativa?'':'<small>Inativa</small>'}</td><td>${esc(p.ufs.join(', '))}</td><td>${esc(vendedora(p.vendedora_id)?.nome)||'<small>Sem dona</small>'}</td></tr>`).join('')}
+    </tbody></table></div>`:'<div class="vazio">Cadastre as praças e diga quem é a dona de cada uma.</div>'}</div></div>`;
+}
+function formVendedora(v){
+  const novo=!v; v=v||{ativa:true}; const j=$('janela');
+  j.innerHTML=`<form class="corpo" id="fmV"><h3>${novo?'Nova vendedora':'Editar vendedora'}</h3><p class="sub">Aparece na lista para o SDR encaminhar. O telefone é usado no aviso pelo WhatsApp.</p>
+  <div class="grade"><div class="largo"><label for="v_nome">Nome *</label><input id="v_nome" required value="${esc(v.nome)}"></div>
+  <div><label for="v_tel">WhatsApp</label><input id="v_tel" inputmode="tel" value="${esc(v.telefone)}"></div><div><label for="v_email">E-mail</label><input id="v_email" type="email" value="${esc(v.email)}"></div></div>
+  <div class="acoes">${novo?'':`<button class="btn" type="button" data-a="alternarVendedora" data-v="${v.id}">${v.ativa?'Desativar':'Reativar'}</button>`}<button class="btn" type="button" data-a="fecharJanela">Cancelar</button><button class="btn pri" type="submit">Salvar</button></div></form>`;
+  $('fmV').onsubmit=async ev=>{ ev.preventDefault();
+    const d=vazioNull({nome:$('v_nome').value.trim(),telefone:$('v_tel').value.trim(),email:$('v_email').value.trim()});
+    const ok=await gravar(()=>novo?sb.from('vendedoras').insert(d).select().single():sb.from('vendedoras').update(d).eq('id',v.id).select().single());
+    if(ok) recarregarFechando();
+  };
+  j.showModal();
+}
+function formPraca(p){
+  const novo=!p; p=p||{ufs:[],ativa:true}; const j=$('janela');
+  j.innerHTML=`<form class="corpo" id="fmP"><h3>${novo?'Nova praça':'Editar praça'}</h3><p class="sub">Ao escolher a praça, a dona já vem marcada para o SDR.</p>
+  <div class="grade"><div class="largo"><label for="p_nome">Nome da praça *</label><input id="p_nome" required value="${esc(p.nome)}"></div>
+  <div><label for="p_ufs">Estados (separados por vírgula)</label><input id="p_ufs" placeholder="SP, RJ" value="${esc(p.ufs.join(', '))}"></div>
+  <div><label for="p_dona">Dona da praça</label><select id="p_dona"><option value=""></option>${opcoes(Object.fromEntries(vendedorasPara(p.vendedora_id).map(v=>[v.id,v.nome])),p.vendedora_id)}</select></div></div>
+  <div class="acoes">${novo?'':`<button class="btn" type="button" data-a="alternarPraca" data-v="${p.id}">${p.ativa?'Desativar':'Reativar'}</button>`}<button class="btn" type="button" data-a="fecharJanela">Cancelar</button><button class="btn pri" type="submit">Salvar</button></div></form>`;
+  $('fmP').onsubmit=async ev=>{ ev.preventDefault();
+    const d={nome:$('p_nome').value.trim(),ufs:$('p_ufs').value.toUpperCase().split(/[^A-Z]+/).filter(u=>UFS.includes(u)),vendedora_id:$('p_dona').value||null};
+    const ok=await gravar(()=>novo?sb.from('pracas').insert(d).select().single():sb.from('pracas').update(d).eq('id',p.id).select().single());
+    if(ok) recarregarFechando();
+  };
+  j.showModal();
+}
+async function recarregarFechando(){ if($('janela').open) $('janela').close(); await carregar(); desenhar(); }
+
+// ---------- equipe
+function telaEquipe(){
+  $('tela').innerHTML=`<div class="barra"><span class="rotulo">QUEM ACESSA A PLATAFORMA</span></div>
+  <div class="rolagem"><table class="tabela"><thead><tr><th>Pessoa</th><th>Papel</th><th>Acesso</th><th></th></tr></thead><tbody>
+  ${S.membros.map(m=>{const eu=m.user_id===S.uid; return `<tr><td><b>${esc(m.nome||m.email)}</b><small>${esc(m.email)}</small></td>
+    <td><select data-papel="${m.user_id}" aria-label="Papel" style="width:auto" ${eu?'disabled':''}><option value="sdr" ${m.papel==='sdr'?'selected':''}>SDR</option><option value="gestao" ${m.papel==='gestao'?'selected':''}>Gestão</option></select></td>
+    <td><span class="chip ${m.ativo?'st-encaminhado':'st-sem_retorno'}">${m.ativo?'Liberado':'Aguardando'}</span></td>
+    <td>${eu?'<small>Você</small>':`<button class="btn" data-a="alternarMembro" data-v="${m.user_id}">${m.ativo?'Bloquear':'Liberar'}</button>`}</td></tr>`}).join('')}
+  </tbody></table></div><p style="color:var(--muted);font-size:13px;margin-top:10px">Cada pessoa cria a própria conta em "Primeiro acesso" na tela de entrada e aparece aqui para ser liberada.</p>`;
+  document.querySelectorAll('[data-papel]').forEach(s=>s.onchange=async e=>{
+    const ok=await gravar(()=>sb.from('membros').update({papel:e.target.value}).eq('user_id',e.target.dataset.papel).select().single());
+    await carregar(); desenhar(); if(ok) aviso('Papel atualizado.');
+  });
+}
+
+// ---------- ações
+const acoes={
+  sair:async()=>{ await sb.auth.signOut(); S.uid=null; if($('ficha').open) $('ficha').close(); telaEntrada(); },
+  trocaEntrada:()=>{ S.modoEntrada=S.modoEntrada==='criar'?'entrar':'criar'; telaEntrada(); },
+  tela:v=>{ S.tela=v; desenhar(); },
+  periodo:v=>{ S.periodo=v; telaPainel(); },
+  novoContato:()=>formContato(),
+  abrir:v=>abrirFicha(v),
+  fecharFicha:()=>{ $('ficha').close(); S.aberto=null; },
+  fecharJanela:()=>$('janela').close(),
+  editar:()=>{ const c=S.contatos.find(x=>x.id===S.aberto); $('ficha').close(); formContato(c); },
+  retorno:v=>mudar(v==='sim'?{teve_retorno:true,status:'atendimento',retornar_em:null}:{teve_retorno:false,status:'sem_retorno',avaliacao:null,retornar_em:maisDias(1)}),
+  avaliar:v=>mudar({avaliacao:v}),
+  encaminhar:async()=>{
+    const vend=$('m_vend').value; if(!vend) return aviso('Escolha a vendedora.');
+    await mudar({status:'encaminhado',vendedora_id:vend,praca_id:$('m_praca').value||null,retornar_em:null});
+  },
+  trocar:()=>{ const vend=$('m_vend').value; if(!vend) return aviso('Escolha a vendedora.'); mudar({vendedora_id:vend}); },
+  descartar:()=>{ const m=$('m_motivo').value; if(!m) return aviso('Escolha o motivo.'); mudar({status:'descartado',motivo_descarte:m,retornar_em:null}); },
+  reabrir:()=>mudar({status:'atendimento',motivo_descarte:null}),
+  whats:()=>{ const c=S.contatos.find(x=>x.id===S.aberto), v=vendedora(c.vendedora_id), t=digitos(v?.telefone);
+    window.open(`https://wa.me/${t.length>=10?'55'+t:''}?text=${encodeURIComponent(mensagemWhats(c,v))}`,'_blank','noopener'); },
+  registrar:async()=>{
+    const texto=$('h_texto').value.trim(); if(!texto) return aviso('Escreva o que aconteceu.');
+    const ok=await gravar(()=>sb.from('interacoes').insert({contato_id:S.aberto,tipo:$('h_tipo').value,texto,criado_por:S.uid}));
+    if(ok){ $('h_texto').value=''; await lerHistorico(); }
+  },
+  excluir:async()=>{
+    const c=S.contatos.find(x=>x.id===S.aberto);
+    if(!confirm(`Excluir ${c.nome} e todo o histórico? Isso não pode ser desfeito.`)) return;
+    const ok=await gravar(()=>sb.from('contatos').delete().eq('id',c.id));
+    if(ok){ S.contatos=S.contatos.filter(x=>x.id!==c.id); S.aberto=null; $('ficha').close(); desenhar(); }
+  },
+  novaVendedora:()=>formVendedora(),
+  editarVendedora:v=>formVendedora(vendedora(v)),
+  novaPraca:()=>{ formPraca(); },
+  editarPraca:v=>formPraca(praca(v)),
+  alternarVendedora:async v=>{ const x=vendedora(v); if(await gravar(()=>sb.from('vendedoras').update({ativa:!x.ativa}).eq('id',v).select().single())) recarregarFechando(); },
+  alternarPraca:async v=>{ const x=praca(v); if(await gravar(()=>sb.from('pracas').update({ativa:!x.ativa}).eq('id',v).select().single())) recarregarFechando(); },
+  alternarMembro:async v=>{ const m=S.membros.find(x=>x.user_id===v); await gravar(()=>sb.from('membros').update({ativo:!m.ativo}).eq('user_id',v).select().single()); await carregar(); desenhar(); },
+};
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-a]'); if(!b) return;
+  if(b.tagName==='BUTTON') e.preventDefault();
+  acoes[b.dataset.a]?.(b.dataset.v);
+});
+$('ficha').addEventListener('close',()=>{ S.aberto=null; });
+
+// Outra pessoa pode ter lançado algo: atualiza ao voltar para a aba, sem atrapalhar quem digita.
+window.addEventListener('focus',async()=>{
+  if(!S.me||$('ficha').open||$('janela').open||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) return;
+  try { await carregar(); desenhar(); } catch {}
+});
+iniciar();
+</script>
+</body>
+</html>
