@@ -188,10 +188,10 @@ const INTERESSES = {sistema:'Sistema', consultoria:'Consultoria', publicos:'Órg
 const MOTIVOS = ['Fora do perfil','Sem interesse','Sem orçamento','Já é cliente','Fechou com concorrente','Contato inválido','Nunca respondeu','Outro'];
 const TIPOS = {ligacao:'Ligação', whatsapp:'WhatsApp', email:'E-mail', nota:'Anotação'};
 const UFS = 'AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO'.split(' ');
-const TITULOS = {painel:'Painel do SDR', contatos:'Contatos', vendedoras:'Vendedoras e praças', equipe:'Equipe'};
+const TITULOS = {painel:'Painel do SDR', contatos:'Contatos', relatorios:'Relatórios', vendedoras:'Vendedoras e praças', equipe:'Equipe'};
 
 const sb = (SUPABASE_URL || window.__MOCK) ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
-const S = {uid:null, me:null, membros:[], vendedoras:[], pracas:[], contatos:[], tela:'painel', periodo:'mes',
+const S = {uid:null, me:null, membros:[], vendedoras:[], pracas:[], contatos:[], tela:'painel', periodo:'mes', periodoRel:'mes',
            filtro:{busca:'', status:'abertos', avaliacao:'', vendedora:'', praca:''}, aberto:null, historico:[], modoEntrada:'entrar'};
 
 const $ = id => document.getElementById(id);
@@ -309,8 +309,7 @@ function desenhar(){
       <small>ATENDIMENTO COMERCIAL</small>
       <h4>ATENDIMENTO</h4>
       ${item('painel','Painel',paraAtender().length)}${item('contatos','Contatos')}
-      ${gestao?'<h4>CADASTROS</h4>':''}
-      ${gestao?item('vendedoras','Vendedoras e praças')+item('equipe','Equipe',pendentes):''}
+      ${gestao?'<h4>GESTÃO</h4>'+item('relatorios','Relatórios')+'<h4>CADASTROS</h4>'+item('vendedoras','Vendedoras e praças')+item('equipe','Equipe',pendentes):''}
       <div class="conta"><b>${esc(S.me.nome||S.me.email)}</b><button data-a="sair">Sair</button></div>
     </aside>
     <main>
@@ -323,21 +322,22 @@ function desenhar(){
     </main></div>`;
   desenharTela();
 }
-function desenharTela(){ if(S.me.papel!=='gestao' && ['vendedoras','equipe'].includes(S.tela)) S.tela='painel'; ({painel:telaPainel, contatos:telaContatos, vendedoras:telaVendedoras, equipe:telaEquipe})[S.tela](); }
+function desenharTela(){ if(S.me.papel!=='gestao' && ['relatorios','vendedoras','equipe'].includes(S.tela)) S.tela='painel'; ({painel:telaPainel, contatos:telaContatos, relatorios:telaRelatorios, vendedoras:telaVendedoras, equipe:telaEquipe})[S.tela](); }
 
 // ---------- painel
-function noPeriodo(ts){
+function noPeriodo(ts, periodo=S.periodo){
   const d = isoDia(new Date(ts)), agora = new Date();
-  if(S.periodo==='hoje') return d===hoje();
-  if(S.periodo==='semana') return d>=maisDias(-6);
-  if(S.periodo==='mes') return d.slice(0,7)===hoje().slice(0,7);
+  if(periodo==='tudo') return true;
+  if(periodo==='hoje') return d===hoje();
+  if(periodo==='semana') return d>=maisDias(-6);
+  if(periodo==='mes') return d.slice(0,7)===hoje().slice(0,7);
   const ant = new Date(agora.getFullYear(),agora.getMonth()-1,1);
   return d.slice(0,7)===isoDia(ant).slice(0,7);
 }
 function barras(linhas){
   if(!linhas.length) return '<div class="vazio">Nada neste período.</div>';
-  const max = Math.max(...linhas.map(l=>l[1]));
-  return linhas.map(([n,v]) => `<div class="bar" title="${esc(n)}: ${v}"><span class="nome">${esc(n)}</span><span class="trilho"><i style="width:${v/max*100}%"></i></span><b>${v}</b></div>`).join('');
+  const max = Math.max(1,...linhas.map(l=>l[1]));
+  return linhas.map(([n,v]) => `<div class="bar" title="${esc(n)}: ${v}"><span class="nome">${esc(n)}</span><span class="trilho"><i style="width:${v/max*100}%;min-width:${v?3:0}px"></i></span><b>${v}</b></div>`).join('');
 }
 function contar(lista,chave){ const m=new Map(); lista.forEach(c=>{const k=chave(c); if(k) m.set(k,(m.get(k)||0)+1)}); return [...m].sort((a,b)=>b[1]-a[1]); }
 function telaPainel(){
@@ -367,6 +367,90 @@ function telaPainel(){
     <div class="cartao"><h2>Encaminhados por vendedora</h2>${barras(contar(enc,c=>vendedora(c.vendedora_id)?.nome))}</div>
     <div class="cartao"><h2>Contatos por origem</h2>${barras(contar(noMes,c=>ORIGENS[c.origem]||c.origem))}</div>
   </div>`;
+}
+
+// ---------- relatórios (só gestão)
+const baseRelatorio = () => S.contatos.filter(c=>noPeriodo(c.criado_em,S.periodoRel));
+function tempoMedio(lista){
+  const horas = lista.filter(c=>c.encaminhado_em).map(c=>(new Date(c.encaminhado_em)-new Date(c.criado_em))/36e5);
+  if(!horas.length) return '–';
+  const m = horas.reduce((a,b)=>a+b,0)/horas.length;
+  return m<24 ? `${Math.max(1,Math.round(m))} h` : `${(m/24).toFixed(1).replace('.',',')} dias`;
+}
+function tabela(cabecalho, linhas, vazio){
+  if(!linhas.length) return `<div class="vazio">${vazio}</div>`;
+  return `<div style="overflow-x:auto"><table class="tabela"><thead><tr>${cabecalho.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>
+    ${linhas.map(l=>`<tr>${l.map(v=>`<td>${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+function telaRelatorios(){
+  const base = baseRelatorio(), h = hoje();
+  const enc = S.contatos.filter(c=>c.encaminhado_em && noPeriodo(c.encaminhado_em,S.periodoRel));
+  const conta = (l,f) => l.filter(f).length;
+  const pct = (a,b) => b ? Math.round(a/b*100)+'%' : '0%';
+  const abertos = S.contatos.filter(c=>!['encaminhado','descartado'].includes(c.status));
+  const atrasados = conta(abertos,c=>c.retornar_em&&c.retornar_em<h);
+  const limite = Date.now()-3*864e5;
+  const parados = abertos.filter(c=>new Date(c.atualizado_em).getTime()<limite).sort((a,b)=>a.atualizado_em.localeCompare(b.atualizado_em));
+  const retorno = conta(base,c=>c.teve_retorno), bons = conta(base,c=>c.avaliacao==='bom');
+  const encBase = conta(base,c=>c.status==='encaminhado'), desc = conta(base,c=>c.status==='descartado');
+  const porSdr = [...new Set(base.map(c=>c.criado_por))].map(id=>{ const l=base.filter(c=>c.criado_por===id);
+    return [membro(id)||'Sem autor', l.length, conta(l,c=>c.teve_retorno), conta(l,c=>c.avaliacao==='bom'), conta(l,c=>c.status==='encaminhado'), conta(l,c=>c.status==='descartado')]; }).sort((a,b)=>b[1]-a[1]);
+  const porVend = S.vendedoras.map(v=>{ const l=enc.filter(c=>c.vendedora_id===v.id);
+    return [v.nome, l.length, conta(l,c=>c.avaliacao==='bom'), conta(l,c=>c.avaliacao==='medio'), conta(l,c=>c.avaliacao==='ruim')]; }).filter(l=>l[1]).sort((a,b)=>b[1]-a[1]);
+  const porPraca = [...new Set(base.map(c=>c.praca_id))].map(id=>{ const l=base.filter(c=>c.praca_id===id);
+    return [praca(id)?.nome||'Sem praça', vendedora(praca(id)?.vendedora_id)?.nome||'', l.length, conta(l,c=>c.avaliacao==='bom'), conta(l,c=>c.status==='encaminhado')]; }).sort((a,b)=>b[2]-a[2]);
+  const P = {hoje:'Hoje',semana:'7 dias',mes:'Este mês',anterior:'Mês passado',tudo:'Tudo'};
+  $('tela').innerHTML = `
+  <div class="barra"><span class="rotulo">PERÍODO:</span>
+    <div class="pilulas">${Object.entries(P).map(([k,v])=>`<button class="${S.periodoRel===k?'on':''}" data-a="periodoRel" data-v="${k}">${v}</button>`).join('')}</div>
+    <div class="dir-auto"><button class="btn" data-a="exportar">Exportar planilha</button></div></div>
+  <div class="kpis">
+    <div class="kpi"><span>Em aberto agora</span><b>${abertos.length}</b><small>${conta(abertos,c=>c.status==='novo')} sem atendimento</small></div>
+    <div class="kpi"><span>Retornos atrasados</span><b>${atrasados}</b><small>hoje, em qualquer período</small></div>
+    <div class="kpi"><span>Parados há 3+ dias</span><b>${parados.length}</b><small>sem nenhuma mudança</small></div>
+    <div class="kpi"><span>Tempo até encaminhar</span><b>${tempoMedio(enc)}</b><small>média do período</small></div>
+  </div>
+  <div class="dupla">
+    <div class="cartao"><h2>Do contato ao encaminhamento <small>contatos que chegaram no período</small></h2>
+      ${base.length?barras([['Recebidos',base.length],['Tiveram retorno',retorno],['Clientes bons',bons],['Encaminhados',encBase],['Descartados',desc]]):'<div class="vazio">Nada neste período.</div>'}
+      ${base.length?`<small style="color:var(--muted)">${pct(encBase,base.length)} dos recebidos foram encaminhados.</small>`:''}</div>
+    <div class="cartao"><h2>Motivos de descarte</h2>${barras(contar(base.filter(c=>c.status==='descartado'),c=>c.motivo_descarte))}</div>
+  </div>
+  <div class="cartao" style="margin-top:12px"><h2>Por SDR <small>quem cadastrou</small></h2>${tabela(['SDR','Cadastrados','Com retorno','Bons','Encaminhados','Descartados'],porSdr,'Nada neste período.')}</div>
+  <div class="dupla">
+    <div class="cartao"><h2>Por vendedora <small>recebidos no período</small></h2>${tabela(['Vendedora','Recebidos','Bons','Médios','Ruins'],porVend,'Nada encaminhado neste período.')}</div>
+    <div class="cartao"><h2>Por praça</h2>${tabela(['Praça','Dona','Contatos','Bons','Encaminhados'],porPraca,'Nada neste período.')}</div>
+  </div>
+  <div class="dupla">
+    <div class="cartao"><h2>Por origem</h2>${barras(contar(base,c=>ORIGENS[c.origem]||c.origem))}</div>
+    <div class="cartao"><h2>Por interesse</h2>${barras(contar(base,c=>INTERESSES[c.interesse]||(c.interesse?c.interesse:'Não informado')))}</div>
+  </div>
+  <div class="dupla">
+    <div class="cartao"><h2>Contatos parados <small>${parados.length}</small></h2>
+      ${parados.length?`<div style="overflow-x:auto"><table class="tabela"><thead><tr><th>Contato</th><th>Situação</th><th>Última mudança</th></tr></thead><tbody>
+      ${parados.slice(0,15).map(c=>`<tr class="link" data-a="abrir" data-v="${c.id}"><td><b>${esc(c.nome)}</b><small>${esc(membro(c.criado_por))}</small></td><td><span class="chip st-${c.status}">${STATUS[c.status]}</span></td><td>${dia(isoDia(new Date(c.atualizado_em)))}</td></tr>`).join('')}
+      </tbody></table></div>`:'<div class="vazio">Nenhum contato parado.</div>'}</div>
+    <div class="cartao"><h2>Últimas movimentações</h2><ul class="hist" id="movimentos"><li class="sis">Carregando…</li></ul></div>
+  </div>`;
+  lerMovimentos();
+}
+async function lerMovimentos(){
+  const {data,error} = await sb.from('interacoes').select('*').order('criado_em',{ascending:false}).range(0,19);
+  const alvo = $('movimentos'); if(!alvo) return;
+  if(error){ alvo.innerHTML='<li class="sis">Não foi possível carregar.</li>'; return; }
+  alvo.innerHTML = data.length ? data.map(i=>{ const c=S.contatos.find(x=>x.id===i.contato_id);
+    return `<li class="${c?'':'sis'}" ${c?`data-a="abrir" data-v="${c.id}" style="cursor:pointer"`:''}><b>${esc(c?.nome||'Contato')}:</b> ${esc(i.texto)}<small>${esc(quando(i.criado_em))}${membro(i.criado_por)?' · '+esc(membro(i.criado_por)):''}</small></li>`; }).join('') : '<li class="sis">Nada registrado ainda.</li>';
+}
+function exportarPlanilha(){
+  const seguro = v => { const t=String(v??'').replace(/[\r\n]+/g,' '); return `"${(/^[=+\-@]/.test(t)?"'"+t:t).replace(/"/g,'""')}"`; };
+  const cab = ['Chegou','Nome','Empresa','Telefone','E-mail','Cidade','UF','Praça','Origem','Interesse','Situação','Teve retorno','Avaliação','Vendedora','Encaminhado em','Motivo do descarte','Cadastrado por','Necessidade'];
+  const linhas = baseRelatorio().map(c=>[quando(c.criado_em),c.nome,c.empresa,c.telefone,c.email,c.cidade,c.uf,praca(c.praca_id)?.nome,ORIGENS[c.origem]||c.origem,INTERESSES[c.interesse]||c.interesse,STATUS[c.status],
+    c.teve_retorno==null?'':c.teve_retorno?'Sim':'Não',AVALIACAO[c.avaliacao],vendedora(c.vendedora_id)?.nome,quando(c.encaminhado_em),c.motivo_descarte,membro(c.criado_por),c.observacoes]);
+  if(!linhas.length) return aviso('Nada neste período para exportar.');
+  const csv = '﻿'+[cab,...linhas].map(l=>l.map(seguro).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  a.download = `contatos-sdr-${hoje()}.csv`; a.click(); URL.revokeObjectURL(a.href);
 }
 
 // ---------- contatos
@@ -613,6 +697,8 @@ const acoes={
   trocaEntrada:()=>{ S.modoEntrada=S.modoEntrada==='criar'?'entrar':'criar'; telaEntrada(); },
   tela:v=>{ S.tela=v; desenhar(); },
   periodo:v=>{ S.periodo=v; telaPainel(); },
+  periodoRel:v=>{ S.periodoRel=v; telaRelatorios(); },
+  exportar:()=>exportarPlanilha(),
   novoContato:async()=>{ await atualizarCadastros(); formContato(); },
   abrir:v=>abrirFicha(v),
   fecharFicha:()=>{ $('ficha').close(); S.aberto=null; },

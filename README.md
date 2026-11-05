@@ -17,6 +17,7 @@ Cada mudança entra sozinha no histórico do contato, com data e autor.
 | | SDR | Gestão |
 | --- | --- | --- |
 | Cadastrar, atender e encaminhar contatos | Sim | Sim |
+| Ver relatórios e exportar planilha | Não | Sim |
 | Cadastrar vendedoras e praças | Não | Sim |
 | Liberar e bloquear pessoas (aba Equipe) | Não | Sim |
 | Excluir contato | Não | Sim |
