@@ -490,6 +490,8 @@ function lista(){
     <td>${esc(vendedora(c.vendedora_id)?.nome)}</td><td>${dia(isoDia(new Date(c.criado_em)))}</td></tr>`).join('')}
   </tbody></table></div>` : `<div class="cartao"><div class="vazio">${S.contatos.length?'Nenhum contato com esses filtros.':'Nenhum contato ainda. Clique em "+ Novo contato" para lançar o primeiro.'}</div></div>`;
 }
+// A praça acompanha o estado. Se dois lugares cobrirem o mesmo estado, a escolha fica com a SDR.
+function pracaDaUf(uf){ const m = S.pracas.filter(p=>p.ativa&&p.ufs.includes(uf)); return m.length===1 ? m[0] : null; }
 function pracasPara(selecionada){ return S.pracas.filter(p=>p.ativa||p.id===selecionada); }
 function vendedorasPara(selecionada){ return S.vendedoras.filter(v=>v.ativa||v.id===selecionada); }
 function duplicado(dados, ignorar){
@@ -514,11 +516,7 @@ function formContato(c){
   </div>
   <div id="c_dup"></div><div class="erro-msg hidden" id="c_erro"></div>
   <div class="acoes"><button class="btn" type="button" data-a="fecharJanela">Cancelar</button><button class="btn pri" type="submit">${novo?'Cadastrar':'Salvar'}</button></div></form>`;
-  $('c_uf').onchange = e => {
-    if($('c_praca').value) return;
-    const m = S.pracas.filter(p=>p.ativa&&p.ufs.includes(e.target.value));
-    if(m.length===1) $('c_praca').value=m[0].id;
-  };
+  $('c_uf').onchange = e => { $('c_praca').value = pracaDaUf(e.target.value)?.id || ''; };
   let confirmado=false;
   $('fmContato').onsubmit = async ev => {
     ev.preventDefault();
@@ -566,9 +564,10 @@ function linhasHistorico(){
 const opcoesPracas = sel => `<option value="">Sem praça</option>`+opcoes(Object.fromEntries(pracasPara(sel).map(p=>[p.id,p.nome])),sel);
 const opcoesVendedoras = sel => `<option value="">Escolha a vendedora</option>`+opcoes(Object.fromEntries(vendedorasPara(sel).map(v=>[v.id,v.nome])),sel);
 function blocoEncaminhar(c){
-  const sugerida = c.vendedora_id || praca(c.praca_id)?.vendedora_id || '';
+  const pracaId = c.praca_id || pracaDaUf(c.uf)?.id || '';
+  const sugerida = c.vendedora_id || praca(pracaId)?.vendedora_id || '';
   const motivo = `<div class="linha"><div><label for="m_motivo">Não segue. Motivo:</label><select id="m_motivo"><option value=""></option>${MOTIVOS.map(m=>`<option>${esc(m)}</option>`).join('')}</select></div><button class="btn perigo" data-a="descartar">Descartar</button></div>`;
-  return {motivo, seguir:`<div class="linha"><div><label for="m_praca">Praça</label><select id="m_praca">${opcoesPracas(c.praca_id)}</select></div><div><label for="m_vend">Vendedora</label><select id="m_vend">${opcoesVendedoras(sugerida)}</select></div></div>
+  return {motivo, seguir:`<div class="linha"><div><label for="m_praca">Praça</label><select id="m_praca">${opcoesPracas(pracaId)}</select></div><div><label for="m_vend">Vendedora</label><select id="m_vend">${opcoesVendedoras(sugerida)}</select></div></div>
     <div class="acoes" style="margin-top:10px"><button class="btn pri" data-a="encaminhar">Seguir para a vendedora</button></div>`};
 }
 function desenharFicha(){
@@ -668,7 +667,7 @@ function formPraca(p){
   <div><label for="p_dona">Dona da praça</label><select id="p_dona"><option value=""></option>${opcoes(Object.fromEntries(vendedorasPara(p.vendedora_id).map(v=>[v.id,v.nome])),p.vendedora_id)}</select></div></div>
   <div class="acoes">${novo?'':`<button class="btn" type="button" data-a="alternarPraca" data-v="${p.id}">${p.ativa?'Desativar':'Reativar'}</button>`}<button class="btn" type="button" data-a="fecharJanela">Cancelar</button><button class="btn pri" type="submit">Salvar</button></div></form>`;
   $('fmP').onsubmit=async ev=>{ ev.preventDefault();
-    const d={nome:$('p_nome').value.trim(),ufs:$('p_ufs').value.toUpperCase().split(/[^A-Z]+/).filter(u=>UFS.includes(u)),vendedora_id:$('p_dona').value||null};
+    const d={nome:$('p_nome').value.trim(),ufs:[...new Set($('p_ufs').value.toUpperCase().split(/[^A-Z]+/).filter(u=>UFS.includes(u)))],vendedora_id:$('p_dona').value||null};
     const ok=await gravar(()=>novo?sb.from('pracas').insert(d).select().single():sb.from('pracas').update(d).eq('id',p.id).select().single());
     if(ok) recarregarFechando();
   };
