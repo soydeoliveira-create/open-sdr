@@ -20,7 +20,7 @@ Cada mudança entra sozinha no histórico do contato, com data e autor.
 | Ver relatórios e exportar planilha | Não | Sim |
 | Cadastrar vendedoras e praças | Não | Sim |
 | Liberar e bloquear pessoas (aba Equipe) | Não | Sim |
-| Excluir contato | Não | Sim |
+| Excluir qualquer contato, de quem for | Não | Sim |
 
 As vendedoras não entram na plataforma: elas são um cadastro e recebem o aviso pelo WhatsApp.
 

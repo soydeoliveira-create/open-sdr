@@ -593,7 +593,7 @@ function desenharFicha(){
   $('ficha').innerHTML=`<div class="corpo">
     <div class="ficha-topo"><div><h3>${esc(c.nome)}</h3>${c.empresa?`<div style="color:var(--muted)">${esc(c.empresa)}</div>`:''}
       <div class="chips"><span class="chip st-${c.status}">${STATUS[c.status]}</span>${c.avaliacao?`<span class="chip av-${c.avaliacao}">Cliente ${AVALIACAO[c.avaliacao].toLowerCase()}</span>`:''}</div></div>
-      <button class="fechar" data-a="fecharFicha" aria-label="Fechar">×</button></div>
+      <div style="display:flex;align-items:center;gap:6px;flex:none">${gestao?'<button class="btn perigo" data-a="excluir">Excluir contato</button>':''}<button class="fechar" data-a="fecharFicha" aria-label="Fechar">×</button></div></div>
     <div class="dados">
       ${c.telefone?`<div><span>Telefone</span><a href="${tel.length>=10?'https://wa.me/55'+tel:'tel:'+esc(tel)}" target="_blank" rel="noopener">${esc(c.telefone)}</a></div>`:''}
       ${c.email?`<div><span>E-mail</span><a href="mailto:${esc(c.email)}">${esc(c.email)}</a></div>`:''}
@@ -607,7 +607,7 @@ function desenharFicha(){
     <div class="etapa"><h4>Registrar atendimento</h4>
       <div class="linha" style="margin-top:0"><div style="flex:0 0 130px"><label for="h_tipo">Tipo</label><select id="h_tipo">${opcoes(TIPOS,'ligacao')}</select></div><div><label for="h_texto">O que aconteceu</label><input id="h_texto" maxlength="1000"></div><button class="btn" data-a="registrar">Registrar</button></div>
       <ul class="hist" id="historico">${linhasHistorico()}</ul></div>
-    <div class="acoes"><button class="btn" data-a="editar">Editar dados</button>${gestao?'<button class="btn perigo" data-a="excluir">Excluir contato</button>':''}</div>
+    <div class="acoes"><button class="btn" data-a="editar">Editar dados</button></div>
   </div>`;
   const data=$('m_data'); if(data) data.onchange=e=>mudar({retornar_em:e.target.value||null});
   const mp=$('m_praca'); if(mp) mp.onchange=e=>{ const d=praca(e.target.value)?.vendedora_id; if(d&&vendedora(d)?.ativa) $('m_vend').value=d; };
