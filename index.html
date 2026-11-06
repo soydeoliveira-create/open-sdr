@@ -495,6 +495,12 @@ function lista(){
 }
 // A praça acompanha o estado. Se dois lugares cobrirem o mesmo estado, a escolha fica com a SDR.
 function pracaDaUf(uf){ const m = S.pracas.filter(p=>p.ativa&&p.ufs.includes(uf)); return m.length===1 ? m[0] : null; }
+// Origens novas ficam gravadas no próprio contato e passam a aparecer para todas.
+function origensTodas(){
+  const {outro, ...fixas} = ORIGENS;
+  const novas = [...new Set(S.contatos.map(c=>c.origem).filter(o=>o&&!ORIGENS[o]))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+  return {...fixas, ...Object.fromEntries(novas.map(o=>[o,o])), outro};
+}
 function pracasPara(selecionada){ return S.pracas.filter(p=>p.ativa||p.id===selecionada); }
 function vendedorasPara(selecionada){ return S.vendedoras.filter(v=>v.ativa||v.id===selecionada); }
 function duplicado(dados, ignorar){
@@ -513,18 +519,30 @@ function formContato(c){
     <div><label for="c_cidade">Cidade</label><input id="c_cidade" value="${esc(c.cidade)}"></div>
     <div><label for="c_uf">UF</label><select id="c_uf"><option value=""></option>${UFS.map(u=>`<option ${u===c.uf?'selected':''}>${u}</option>`).join('')}</select></div>
     <div><label for="c_praca">Praça</label><select id="c_praca"><option value="">${pracasPara(c.praca_id).length?'Escolha a praça':'Nenhuma praça cadastrada'}</option>${opcoes(Object.fromEntries(pracasPara(c.praca_id).map(p=>[p.id,p.nome])),c.praca_id)}</select></div>
-    <div><label for="c_origem">Como chegou</label><select id="c_origem">${opcoes(ORIGENS,c.origem)}</select></div>
+    <div><label for="c_origem">Como chegou</label><select id="c_origem">${opcoes(origensTodas(),c.origem)}<option value="__nova">+ Cadastrar nova opção</option></select></div>
+    <div class="largo hidden" id="c_origem_caixa"><label for="c_origem_nova">Nova opção de como chegou</label><input id="c_origem_nova" maxlength="40" placeholder="Ex.: Google, Feira, Rádio"></div>
     <div class="largo"><label for="c_interesse">Interesse</label><select id="c_interesse"><option value=""></option>${opcoes(INTERESSES,c.interesse)}</select></div>
     <div class="largo"><label for="c_obs">O que o cliente precisa</label><textarea id="c_obs">${esc(c.observacoes)}</textarea></div>
   </div>
   <div id="c_dup"></div><div class="erro-msg hidden" id="c_erro"></div>
   <div class="acoes"><button class="btn" type="button" data-a="fecharJanela">Cancelar</button><button class="btn pri" type="submit">${novo?'Cadastrar':'Salvar'}</button></div></form>`;
   $('c_uf').onchange = e => { $('c_praca').value = pracaDaUf(e.target.value)?.id || ''; };
+  $('c_origem').onchange = e => {
+    const nova = e.target.value==='__nova';
+    $('c_origem_caixa').classList.toggle('hidden',!nova);
+    if(nova) $('c_origem_nova').focus();
+  };
   let confirmado=false;
   $('fmContato').onsubmit = async ev => {
     ev.preventDefault();
+    let origem = $('c_origem').value;
+    if(origem==='__nova'){
+      const nova = $('c_origem_nova').value.trim();
+      if(!nova){ const e=$('c_erro'); e.textContent='Escreva a nova opção de como chegou.'; e.classList.remove('hidden'); return; }
+      origem = Object.entries(origensTodas()).find(([,n])=>semAcento(n)===semAcento(nova))?.[0] || nova;
+    }
     const d = vazioNull({nome:$('c_nome').value.trim(),empresa:$('c_empresa').value.trim(),telefone:$('c_telefone').value.trim(),email:$('c_email').value.trim(),
-      cidade:$('c_cidade').value.trim(),uf:$('c_uf').value,praca_id:$('c_praca').value,origem:$('c_origem').value,interesse:$('c_interesse').value,observacoes:$('c_obs').value.trim()});
+      cidade:$('c_cidade').value.trim(),uf:$('c_uf').value,praca_id:$('c_praca').value,origem,interesse:$('c_interesse').value,observacoes:$('c_obs').value.trim()});
     const erro=$('c_erro');
     if(!d.telefone&&!d.email){ erro.textContent='Informe um telefone ou um e-mail.'; erro.classList.remove('hidden'); return; }
     erro.classList.add('hidden');
