@@ -94,6 +94,7 @@ textarea{resize:vertical;min-height:62px}
 .tabela tbody tr.link{cursor:pointer}
 .tabela tbody tr.link:hover{background:#F7FAFD}
 .tabela td small{display:block;color:var(--muted)}
+.tabela td small b{font-weight:600;color:#3B4C60}
 .rolagem{overflow-x:auto;background:#fff;border:1px solid var(--line);border-radius:14px}
 .chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:11px;white-space:nowrap;background:var(--sky);color:var(--navy)}
 .chip.st-sem_retorno,.chip.av-medio{background:var(--medio-bg);color:var(--medio)}
@@ -293,6 +294,8 @@ function telaEntrada(){
 }
 
 // ---------- estrutura
+// Empresa, quando houver, e sempre um meio de contato.
+const linhaContato = c => (c.empresa?`<small><b>${esc(c.empresa)}</b></small>`:'')+`<small>${esc(c.telefone||c.email)}</small>`;
 function paraAtender(){
   const h = hoje();
   return S.contatos.filter(c => c.status==='novo' || (['atendimento','sem_retorno'].includes(c.status) && c.retornar_em && c.retornar_em<=h))
@@ -359,7 +362,7 @@ function telaPainel(){
   </div>
   <div class="cartao" style="margin-top:12px"><h2>Para atender agora <small>${fila.length} ${fila.length===1?'contato':'contatos'}</small></h2>
     ${fila.length?`<div style="overflow-x:auto"><table class="tabela"><thead><tr><th>Contato</th><th>Situação</th><th>Origem</th><th>Quando</th></tr></thead><tbody>
-    ${fila.slice(0,12).map(c=>`<tr class="link" data-a="abrir" data-v="${c.id}"><td><b>${esc(c.nome)}</b><small>${esc(c.empresa||c.telefone||c.email)}</small></td><td><span class="chip st-${c.status}">${STATUS[c.status]}</span></td><td>${esc(ORIGENS[c.origem]||c.origem)}</td>
+    ${fila.slice(0,12).map(c=>`<tr class="link" data-a="abrir" data-v="${c.id}"><td><b>${esc(c.nome)}</b>${linhaContato(c)}</td><td><span class="chip st-${c.status}">${STATUS[c.status]}</span></td><td>${esc(ORIGENS[c.origem]||c.origem)}</td>
       <td>${c.retornar_em?`<span class="${c.retornar_em<h?'atrasado':''}">${c.retornar_em<h?'Atrasado: ':'Retornar hoje'}${c.retornar_em<h?dia(c.retornar_em):''}</span>`:'Chegou '+esc(quando(c.criado_em))}</td></tr>`).join('')}
     </tbody></table></div>`:'<div class="vazio">Tudo em dia. Nenhum contato esperando atendimento.</div>'}
   </div>
@@ -483,7 +486,7 @@ function telaContatos(){
 function lista(){
   const l = filtrados(), h=hoje();
   $('lista').innerHTML = l.length ? `<div class="rolagem"><table class="tabela"><thead><tr><th>Contato</th><th>Local</th><th>Situação</th><th>Avaliação</th><th>Vendedora</th><th>Chegou</th></tr></thead><tbody>
-  ${l.map(c=>`<tr class="link" data-a="abrir" data-v="${c.id}"><td><b>${esc(c.nome)}</b><small>${esc(c.empresa||c.telefone||c.email)}</small></td>
+  ${l.map(c=>`<tr class="link" data-a="abrir" data-v="${c.id}"><td><b>${esc(c.nome)}</b>${linhaContato(c)}</td>
     <td>${esc([c.cidade,c.uf].filter(Boolean).join(' / '))}<small>${esc(praca(c.praca_id)?.nome)}</small></td>
     <td><span class="chip st-${c.status}">${STATUS[c.status]}</span>${c.retornar_em&&!['encaminhado','descartado'].includes(c.status)?`<small class="${c.retornar_em<h?'atrasado':''}">retornar ${dia(c.retornar_em)}</small>`:''}</td>
     <td>${c.avaliacao?`<span class="chip av-${c.avaliacao}">${AVALIACAO[c.avaliacao]}</span>`:'<small>Sem avaliação</small>'}</td>
