@@ -383,6 +383,12 @@ function telaFila(prosp){
 
 // ---------- relatórios (só gestão)
 const baseRelatorio = () => S.contatos.filter(c=>noPeriodo(c.criado_em,S.periodoRel));
+// Em aberto = nem encaminhado nem descartado. "Sem marcação" = cadastrado e ninguém respondeu à pergunta da ficha.
+function divisaoAbertos(l){
+  const n = s => l.filter(c=>c.status===s).length;
+  return [[n('novo'),'sem marcação'],[n('atendimento'),'responderam, aguardam decisão'],[n('sem_retorno'),'não respondem']]
+    .filter(([v])=>v).map(([v,t])=>`${v} ${t}`).join(' · ') || 'nenhum';
+}
 const duracao = horas => horas<1 ? `${Math.max(1,Math.round(horas*60))} min` : horas<24 ? `${Math.round(horas)} h` : `${(horas/24).toFixed(1).replace('.',',')} dias`;
 // Do cadastro ao clique em "Seguir para a vendedora", só de quem foi encaminhado e procurou a Open (prospecção fica de fora).
 function tempoAteVendedora(lista){
@@ -428,7 +434,7 @@ function telaRelatorios(){
     <div class="pilulas">${Object.entries(P).map(([k,v])=>`<button class="${S.periodoRel===k?'on':''}" data-a="periodoRel" data-v="${k}">${v}</button>`).join('')}</div>
     <div class="dir-auto"><button class="btn" data-a="exportar">Exportar planilha</button><button class="btn pri" data-a="pdf">Gerar PDF</button></div></div>
   <div class="kpis">
-    <div class="kpi"><span>Em aberto agora</span><b>${abertos.length}</b><small>${conta(abertos,c=>c.status==='novo')} sem atendimento</small></div>
+    <div class="kpi"><span>Em aberto agora</span><b>${abertos.length}</b><small>${divisaoAbertos(abertos)}</small></div>
     <div class="kpi"><span>Tentativas atrasadas</span><b>${atrasados}</b><small>nova tentativa com data vencida</small></div>
     <div class="kpi"><span>Sem andamento há 3+ dias</span><b>${parados.length}</b><small>em aberto, sem nenhuma ação</small></div>
     <div class="kpi"><span>Tempo até a vendedora</span><b>${tempo.valor}</b><small>${tempo.detalhe}</small></div>
@@ -527,7 +533,7 @@ ${k('Clientes bons', r.bons, `${r.pct(r.bons,total)} dos recebidos`)}
 ${k('Encaminhados', r.encBase, `${r.pct(r.encBase,total)} dos recebidos`)}
 </div>
 <div class="ks">
-${k('Em aberto hoje', r.abertos.length, `${r.conta(r.abertos,c=>c.status==='novo')} sem atendimento`)}
+${k('Em aberto hoje', r.abertos.length, divisaoAbertos(r.abertos))}
 ${k('Tentativas atrasadas', r.atrasados, 'nova tentativa com data vencida')}
 ${k('Sem andamento há 3+ dias', r.parados.length, 'em aberto, sem nenhuma ação')}
 ${(t=>k('Tempo até a vendedora', t.valor, t.detalhe))(tempoAteVendedora(r.enc))}
@@ -636,6 +642,11 @@ function formContato(c, padrao){
     <div class="largo hidden" id="c_origem_caixa"><label for="c_origem_nova">Nova opção de como chegou</label><input id="c_origem_nova" maxlength="40" placeholder="Ex.: Google, Feira, Rádio"></div>
     <div class="largo"><label for="c_interesse">Interesse</label><select id="c_interesse"><option value=""></option>${opcoes(INTERESSES,c.interesse)}</select></div>
     <div class="largo"><label for="c_obs">O que o cliente precisa</label><textarea id="c_obs">${esc(c.observacoes)}</textarea></div>
+    ${novo?`<div class="largo"><label for="c_falou">${c.origem==='prospeccao'?'Já fez o contato? *':'Já falou com o cliente? *'}</label><select id="c_falou" required>
+      <option value="">Escolha</option>
+      <option value="sim">${c.origem==='prospeccao'?'Sim, contato feito':'Sim, o cliente respondeu'}</option>
+      <option value="nao">Tentei, mas não respondeu</option>
+      <option value="depois">Ainda não tentei</option></select></div>`:''}
   </div>
   <div id="c_dup"></div><div class="erro-msg hidden" id="c_erro"></div>
   <div class="acoes"><button class="btn" type="button" data-a="fecharJanela">Cancelar</button><button class="btn pri" type="submit">${novo?'Cadastrar':'Salvar'}</button></div></form>`;
@@ -658,6 +669,12 @@ function formContato(c, padrao){
       cidade:$('c_cidade').value.trim(),uf:$('c_uf').value,praca_id:$('c_praca').value,origem,interesse:$('c_interesse').value,observacoes:$('c_obs').value.trim()});
     const erro=$('c_erro');
     if(!d.telefone&&!d.email){ erro.textContent='Informe um telefone ou um e-mail.'; erro.classList.remove('hidden'); return; }
+    if(novo){
+      const falou = $('c_falou').value;
+      if(!falou){ erro.textContent='Diga se já falou com o cliente.'; erro.classList.remove('hidden'); return; }
+      if(falou==='sim') Object.assign(d,{teve_retorno:true,status:'atendimento'});
+      if(falou==='nao') Object.assign(d,{teve_retorno:false,status:'sem_retorno',retornar_em:maisDias(1)});
+    }
     erro.classList.add('hidden');
     const dup = duplicado(d,c.id);
     if(dup&&!confirmado){
@@ -853,7 +870,13 @@ const acoes={
   registrar:async()=>{
     const texto=$('h_texto').value.trim(); if(!texto) return aviso('Escreva o que aconteceu.');
     const ok=await gravar(()=>sb.from('interacoes').insert({contato_id:S.aberto,tipo:$('h_tipo').value,texto,criado_por:S.uid}));
-    if(ok){ $('h_texto').value=''; await lerHistorico(); }
+    if(ok){
+      $('h_texto').value='';
+      const c=S.contatos.find(x=>x.id===S.aberto);
+      const {data}=await sb.from('contatos').update({observacoes:c.observacoes}).eq('id',c.id).select().single();
+      if(data) S.contatos[S.contatos.findIndex(x=>x.id===c.id)]=data;
+      await lerHistorico();
+    }
   },
   excluir:async()=>{
     const c=S.contatos.find(x=>x.id===S.aberto);
