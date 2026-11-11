@@ -147,7 +147,7 @@ create trigger contato_carimbos before insert or update on public.contatos
 create function public.contato_historico() returns trigger
 language plpgsql security definer set search_path = '' as $$
 declare
-  nome_status constant jsonb := '{"novo":"Novo","atendimento":"Em atendimento","sem_retorno":"Sem retorno","encaminhado":"Encaminhado","descartado":"Descartado"}';
+  nome_status constant jsonb := '{"novo":"Novo","atendimento":"Em atendimento","sem_retorno":"Não responde","encaminhado":"Encaminhado","descartado":"Descartado"}';
   nome_avaliacao constant jsonb := '{"bom":"Bom","medio":"Médio","ruim":"Ruim"}';
   vendedora text;
 begin

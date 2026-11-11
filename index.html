@@ -182,7 +182,7 @@ label{display:block;font-size:12px;font-weight:600;color:#3B4C60;margin-bottom:3
 const SUPABASE_URL = 'https://sirepfbcdhtbvwcninpt.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_IXPq2TNoJZKqBf9VXmFh3Q__bc89Sff';
 
-const STATUS = {novo:'Novo', atendimento:'Em atendimento', sem_retorno:'Sem retorno', encaminhado:'Encaminhado', descartado:'Descartado'};
+const STATUS = {novo:'Novo', atendimento:'Em atendimento', sem_retorno:'Não responde', encaminhado:'Encaminhado', descartado:'Descartado'};
 const AVALIACAO = {bom:'Bom', medio:'Médio', ruim:'Ruim'};
 const ORIGENS = {site:'Site', instagram:'Instagram', linkedin:'LinkedIn', youtube:'YouTube', whatsapp:'WhatsApp', telefone:'Telefone', email:'E-mail', indicacao:'Indicação', evento:'Evento', trafego:'Tráfego pago', prospeccao:'Prospecção ativa', rdstation:'RD Station', outro:'Outro'};
 const INTERESSES = {sistema:'Sistema', consultoria:'Consultoria', publicos:'Órgãos Públicos', cursos:'Cursos', renovacoes:'Renovações', formacao7d:'Formação 7D', parceria:'Parceria', outros:'Outros'};
@@ -339,8 +339,8 @@ function noPeriodo(ts, periodo=S.periodo){
   const ant = new Date(agora.getFullYear(),agora.getMonth()-1,1);
   return d.slice(0,7)===isoDia(ant).slice(0,7);
 }
-function barras(linhas){
-  if(!linhas.length) return '<div class="vazio">Nada neste período.</div>';
+function barras(linhas, vazio='Nenhum contato neste período.'){
+  if(!linhas.length) return `<div class="vazio">${vazio}</div>`;
   const max = Math.max(1,...linhas.map(l=>l[1]));
   return linhas.map(([n,v]) => `<div class="bar" title="${esc(n)}: ${v}"><span class="nome">${esc(n)}</span><span class="trilho"><i style="width:${v/max*100}%;min-width:${v?3:0}px"></i></span><b>${v}</b></div>`).join('');
 }
@@ -357,7 +357,7 @@ function telaFila(prosp){
   const P = {hoje:'Hoje',semana:'7 dias',mes:'Este mês',anterior:'Mês passado'};
   const T = prosp
     ? {novo:'+ Nova prospecção', acao:'novaProspeccao', recebidos:'Prospecções', cadastrados:'cadastradas no período', retorno:'Contato feito', dos:'das prospecções', fila:'Para prospectar agora', vazio:'Tudo em dia. Nenhuma prospecção esperando contato.', chegou:'Cadastrada ', limite:50}
-    : {novo:'+ Novo contato', acao:'novoContato', recebidos:'Contatos recebidos', cadastrados:'cadastrados no período', retorno:'Tiveram retorno', dos:'dos recebidos', fila:'Para atender agora', vazio:'Tudo em dia. Nenhum contato esperando atendimento.', chegou:'Chegou ', limite:12};
+    : {novo:'+ Novo contato', acao:'novoContato', recebidos:'Contatos recebidos', cadastrados:'cadastrados no período', retorno:'Responderam', dos:'dos recebidos', fila:'Para atender agora', vazio:'Tudo em dia. Nenhum contato esperando atendimento.', chegou:'Chegou ', limite:12};
   $('tela').innerHTML = `
   <div class="barra"><span class="rotulo">PERÍODO:</span>
     <div class="pilulas">${Object.entries(P).map(([k,v])=>`<button class="${S.periodo===k?'on':''}" data-a="periodo" data-v="${k}">${v}</button>`).join('')}</div>
@@ -370,12 +370,12 @@ function telaFila(prosp){
   </div>
   <div class="cartao" style="margin-top:12px"><h2>${T.fila} <small>${fila.length} ${fila.length===1?'contato':'contatos'}</small></h2>
     ${fila.length?`<div style="overflow-x:auto"><table class="tabela"><thead><tr><th>Contato</th><th>Situação</th><th>${prosp?'Local':'Origem'}</th><th>Quando</th></tr></thead><tbody>
-    ${fila.slice(0,T.limite).map(c=>`<tr class="link" data-a="abrir" data-v="${c.id}"><td><b>${esc(c.nome)}</b>${linhaContato(c)}</td><td><span class="chip st-${c.status}">${prosp&&c.status==='sem_retorno'?'Sem contato':STATUS[c.status]}</span></td><td>${esc(prosp?[c.cidade,c.uf].filter(Boolean).join(' / '):(ORIGENS[c.origem]||c.origem))}</td>
-      <td>${c.retornar_em?`<span class="${c.retornar_em<h?'atrasado':''}">${c.retornar_em<h?'Atrasado: ':'Retornar hoje'}${c.retornar_em<h?dia(c.retornar_em):''}</span>`:T.chegou+esc(quando(c.criado_em))}</td></tr>`).join('')}
+    ${fila.slice(0,T.limite).map(c=>`<tr class="link" data-a="abrir" data-v="${c.id}"><td><b>${esc(c.nome)}</b>${linhaContato(c)}</td><td><span class="chip st-${c.status}">${STATUS[c.status]}</span></td><td>${esc(prosp?[c.cidade,c.uf].filter(Boolean).join(' / '):(ORIGENS[c.origem]||c.origem))}</td>
+      <td>${c.retornar_em?`<span class="${c.retornar_em<h?'atrasado':''}">${c.retornar_em<h?'Tentativa atrasada: ':'Tentar de novo hoje'}${c.retornar_em<h?dia(c.retornar_em):''}</span>`:T.chegou+esc(quando(c.criado_em))}</td></tr>`).join('')}
     </tbody></table></div>${fila.length>T.limite?`<small style="color:var(--muted)">Mostrando ${T.limite} de ${fila.length}. Os demais estão em Contatos.</small>`:''}`:`<div class="vazio">${T.vazio}</div>`}
   </div>
   <div class="dupla">
-    <div class="cartao"><h2>Encaminhados por vendedora</h2>${barras(contar(enc,c=>vendedora(c.vendedora_id)?.nome))}</div>
+    <div class="cartao"><h2>Encaminhados por vendedora</h2>${barras(contar(enc,c=>vendedora(c.vendedora_id)?.nome),'Nenhum encaminhamento neste período.')}</div>
     ${prosp?`<div class="cartao"><h2>Prospecções por interesse</h2>${barras(contar(noMes,c=>INTERESSES[c.interesse]||(c.interesse||'Não informado')))}</div>`
            :`<div class="cartao"><h2>Contatos por origem</h2>${barras(contar(noMes,c=>ORIGENS[c.origem]||c.origem))}</div>`}
   </div>`;
@@ -408,8 +408,8 @@ function dadosRelatorio(){
   const encBase = conta(base,c=>c.status==='encaminhado'), desc = conta(base,c=>c.status==='descartado');
   const porSdr = [...new Set(base.map(c=>c.criado_por))].map(id=>{ const l=base.filter(c=>c.criado_por===id);
     return [membro(id)||'Sem autor', l.length, conta(l,c=>c.teve_retorno), conta(l,c=>c.avaliacao==='bom'), conta(l,c=>c.status==='encaminhado'), conta(l,c=>c.status==='descartado')]; }).sort((a,b)=>b[1]-a[1]);
-  const porVend = S.vendedoras.map(v=>{ const l=enc.filter(c=>c.vendedora_id===v.id);
-    return [v.nome, l.length, conta(l,c=>c.avaliacao==='bom'), conta(l,c=>c.avaliacao==='medio'), conta(l,c=>c.avaliacao==='ruim')]; }).filter(l=>l[1]).sort((a,b)=>b[1]-a[1]);
+  const porVend = S.vendedoras.filter(v=>v.ativa||enc.some(c=>c.vendedora_id===v.id)).map(v=>{ const l=enc.filter(c=>c.vendedora_id===v.id);
+    return [v.nome, l.length, conta(l,c=>c.avaliacao==='bom'), conta(l,c=>c.avaliacao==='medio'), conta(l,c=>c.avaliacao==='ruim')]; }).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
   const porPraca = [...new Set(base.map(c=>c.praca_id))].map(id=>{ const l=base.filter(c=>c.praca_id===id);
     return [praca(id)?.nome||'Sem praça', vendedora(praca(id)?.vendedora_id)?.nome||'', l.length, conta(l,c=>c.avaliacao==='bom'), conta(l,c=>c.status==='encaminhado')]; }).sort((a,b)=>b[2]-a[2]);
   return {base,h,enc,conta,pct,abertos,atrasados,parados,retorno,bons,encBase,desc,porSdr,porVend,porPraca};
@@ -423,30 +423,30 @@ function telaRelatorios(){
     <div class="dir-auto"><button class="btn" data-a="exportar">Exportar planilha</button><button class="btn pri" data-a="pdf">Gerar PDF</button></div></div>
   <div class="kpis">
     <div class="kpi"><span>Em aberto agora</span><b>${abertos.length}</b><small>${conta(abertos,c=>c.status==='novo')} sem atendimento</small></div>
-    <div class="kpi"><span>Retornos atrasados</span><b>${atrasados}</b><small>hoje, em qualquer período</small></div>
-    <div class="kpi"><span>Parados há 3+ dias</span><b>${parados.length}</b><small>sem nenhuma mudança</small></div>
-    <div class="kpi"><span>Tempo até encaminhar</span><b>${tempoMedio(enc)}</b><small>média do período</small></div>
+    <div class="kpi"><span>Tentativas atrasadas</span><b>${atrasados}</b><small>nova tentativa com data vencida</small></div>
+    <div class="kpi"><span>Sem andamento há 3+ dias</span><b>${parados.length}</b><small>em aberto, sem nenhuma ação</small></div>
+    <div class="kpi"><span>Tempo até a vendedora</span><b>${tempoMedio(enc)}</b><small>média do cadastro ao encaminhamento</small></div>
   </div>
   <div class="dupla">
     <div class="cartao"><h2>Do contato ao encaminhamento <small>contatos que chegaram no período</small></h2>
-      ${base.length?barras([['Recebidos',base.length],['Tiveram retorno',retorno],['Clientes bons',bons],['Encaminhados',encBase],['Descartados',desc]]):'<div class="vazio">Nada neste período.</div>'}
+      ${base.length?barras([['Recebidos',base.length],['Responderam',retorno],['Clientes bons',bons],['Encaminhados',encBase],['Descartados',desc]]):'<div class="vazio">Nenhum contato cadastrado neste período.</div>'}
       ${base.length?`<small style="color:var(--muted)">${pct(encBase,base.length)} dos recebidos foram encaminhados.</small>`:''}</div>
-    <div class="cartao"><h2>Motivos de descarte</h2>${barras(contar(base.filter(c=>c.status==='descartado'),c=>c.motivo_descarte))}</div>
+    <div class="cartao"><h2>Motivos de descarte</h2>${barras(contar(base.filter(c=>c.status==='descartado'),c=>c.motivo_descarte),'Nenhum contato descartado neste período.')}</div>
   </div>
-  <div class="cartao" style="margin-top:12px"><h2>Por SDR <small>quem cadastrou</small></h2>${tabela(['SDR','Cadastrados','Com retorno','Bons','Encaminhados','Descartados'],porSdr,'Nada neste período.')}</div>
+  <div class="cartao" style="margin-top:12px"><h2>Por SDR <small>quem cadastrou</small></h2>${tabela(['SDR','Cadastrados','Responderam','Bons','Encaminhados','Descartados'],porSdr,'Nenhum contato cadastrado neste período.')}</div>
   <div class="dupla">
-    <div class="cartao"><h2>Por vendedora <small>recebidos no período</small></h2>${tabela(['Vendedora','Recebidos','Bons','Médios','Ruins'],porVend,'Nada encaminhado neste período.')}</div>
-    <div class="cartao"><h2>Por praça</h2>${tabela(['Praça','Dona','Contatos','Bons','Encaminhados'],porPraca,'Nada neste período.')}</div>
+    <div class="cartao"><h2>Por vendedora <small>recebidos no período</small></h2>${tabela(['Vendedora','Recebidos','Bons','Médios','Ruins'],porVend,'Nenhuma vendedora cadastrada.')}</div>
+    <div class="cartao"><h2>Por praça</h2>${tabela(['Praça','Dona','Contatos','Bons','Encaminhados'],porPraca,'Nenhum contato cadastrado neste período.')}</div>
   </div>
   <div class="dupla">
     <div class="cartao"><h2>Por origem</h2>${barras(contar(base,c=>ORIGENS[c.origem]||c.origem))}</div>
     <div class="cartao"><h2>Por interesse</h2>${barras(contar(base,c=>INTERESSES[c.interesse]||(c.interesse?c.interesse:'Não informado')))}</div>
   </div>
   <div class="dupla">
-    <div class="cartao"><h2>Contatos parados <small>${parados.length}</small></h2>
+    <div class="cartao"><h2>Sem andamento há 3+ dias <small>${parados.length}</small></h2>
       ${parados.length?`<div style="overflow-x:auto"><table class="tabela"><thead><tr><th>Contato</th><th>Situação</th><th>Última mudança</th></tr></thead><tbody>
       ${parados.slice(0,15).map(c=>`<tr class="link" data-a="abrir" data-v="${c.id}"><td><b>${esc(c.nome)}</b><small>${esc(membro(c.criado_por))}</small></td><td><span class="chip st-${c.status}">${STATUS[c.status]}</span></td><td>${dia(isoDia(new Date(c.atualizado_em)))}</td></tr>`).join('')}
-      </tbody></table></div>`:'<div class="vazio">Nenhum contato parado.</div>'}</div>
+      </tbody></table></div>`:'<div class="vazio">Nenhum contato parado. Tudo andando.</div>'}</div>
     <div class="cartao"><h2>Últimas movimentações</h2><ul class="hist" id="movimentos"><li class="sis">Carregando…</li></ul></div>
   </div>`;
   lerMovimentos();
@@ -456,7 +456,7 @@ async function lerMovimentos(){
   const alvo = $('movimentos'); if(!alvo) return;
   if(error){ alvo.innerHTML='<li class="sis">Não foi possível carregar.</li>'; return; }
   alvo.innerHTML = data.length ? data.map(i=>{ const c=S.contatos.find(x=>x.id===i.contato_id);
-    return `<li class="${c?'':'sis'}" ${c?`data-a="abrir" data-v="${c.id}" style="cursor:pointer"`:''}><b>${esc(c?.nome||'Contato')}:</b> ${esc(i.texto)}<small>${esc(quando(i.criado_em))}${membro(i.criado_por)?' · '+esc(membro(i.criado_por)):''}</small></li>`; }).join('') : '<li class="sis">Nada registrado ainda.</li>';
+    return `<li class="${c?'':'sis'}" ${c?`data-a="abrir" data-v="${c.id}" style="cursor:pointer"`:''}><b>${esc(c?.nome||'Contato')}:</b> ${esc(i.texto.replace('Situação: Sem retorno','Situação: Não responde'))}<small>${esc(quando(i.criado_em))}${membro(i.criado_por)?' · '+esc(membro(i.criado_por)):''}</small></li>`; }).join('') : '<li class="sis">Nada registrado ainda.</li>';
 }
 // ---------- relatório em PDF (página A4 que o navegador salva como PDF)
 const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
@@ -472,10 +472,10 @@ function gerarPDF(){
   const r = dadosRelatorio(), P = S.periodoRel;
   const daProsp = p => r.base.filter(c=>ehProspeccao(c)===p);
   const linhaCanal = (nome,l) => [nome, l.length, r.conta(l,c=>c.teve_retorno), r.conta(l,c=>c.avaliacao==='bom'), r.conta(l,c=>c.status==='encaminhado'), r.conta(l,c=>c.status==='descartado')];
-  const tab = (cab, linhas, vazio='Nada neste período.') => linhas.length
+  const tab = (cab, linhas, vazio='Nenhum contato cadastrado neste período.') => linhas.length
     ? `<table><thead><tr>${cab.map((t,i)=>`<th class="${i&&typeof linhas[0][i]==='number'?'n':''}">${t}</th>`).join('')}</tr></thead><tbody>${linhas.map(l=>`<tr>${l.map((v,i)=>`<td class="${i&&typeof v==='number'?'n':''}">${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>`
     : `<p class="vazio">${vazio}</p>`;
-  const bar = linhas => { if(!linhas.length) return '<p class="vazio">Nada neste período.</p>';
+  const bar = (linhas, vazio='Nenhum contato neste período.') => { if(!linhas.length) return `<p class="vazio">${vazio}</p>`;
     const max = Math.max(1,...linhas.map(l=>l[1]));
     return linhas.map(([n,v])=>`<div class="bar"><span>${esc(n)}</span><i><b style="width:${v/max*100}%;min-width:${v?2:0}px"></b></i><em>${v}</em></div>`).join(''); };
   const k = (rot,val,sub) => `<div class="k"><span>${rot}</span><b>${val}</b><small>${sub}</small></div>`;
@@ -512,33 +512,33 @@ footer{margin-top:14px;padding-top:8px;border-top:1px solid #E3E9F0;color:#66768
 <div class="bloco"><h2>Resumo do período</h2>
 <div class="ks">
 ${k('Contatos recebidos', total, 'entrada e prospecção')}
-${k('Com retorno', r.retorno, `${r.pct(r.retorno,total)} dos recebidos`)}
+${k('Responderam', r.retorno, `${r.pct(r.retorno,total)} dos recebidos`)}
 ${k('Clientes bons', r.bons, `${r.pct(r.bons,total)} dos recebidos`)}
 ${k('Encaminhados', r.encBase, `${r.pct(r.encBase,total)} dos recebidos`)}
 </div>
 <div class="ks">
 ${k('Em aberto hoje', r.abertos.length, `${r.conta(r.abertos,c=>c.status==='novo')} sem atendimento`)}
-${k('Retornos atrasados', r.atrasados, 'na data de hoje')}
-${k('Parados há 3+ dias', r.parados.length, 'sem nenhuma mudança')}
-${k('Tempo até encaminhar', tempoMedio(r.enc), 'média do período')}
+${k('Tentativas atrasadas', r.atrasados, 'nova tentativa com data vencida')}
+${k('Sem andamento há 3+ dias', r.parados.length, 'em aberto, sem nenhuma ação')}
+${k('Tempo até a vendedora', tempoMedio(r.enc), 'média do cadastro ao encaminhamento')}
 </div></div>
 
 <div class="duas">
-<div class="bloco"><h2>Do contato ao encaminhamento</h2>${total?bar([['Recebidos',total],['Com retorno',r.retorno],['Clientes bons',r.bons],['Encaminhados',r.encBase],['Descartados',r.desc]]):'<p class="vazio">Nada neste período.</p>'}</div>
-<div class="bloco"><h2>Entrada x prospecção</h2>${tab(['Canal','Recebidos','Retorno','Bons','Encam.','Desc.'],[linhaCanal('Procuraram a Open',daProsp(false)),linhaCanal('Prospecção ativa',daProsp(true))])}</div>
+<div class="bloco"><h2>Do contato ao encaminhamento</h2>${total?bar([['Recebidos',total],['Responderam',r.retorno],['Clientes bons',r.bons],['Encaminhados',r.encBase],['Descartados',r.desc]]):'<p class="vazio">Nenhum contato cadastrado neste período.</p>'}</div>
+<div class="bloco"><h2>Entrada x prospecção</h2>${tab(['Canal','Recebidos','Responderam','Bons','Encam.','Desc.'],[linhaCanal('Procuraram a Open',daProsp(false)),linhaCanal('Prospecção ativa',daProsp(true))])}</div>
 </div>
 
-<div class="bloco"><h2>Por SDR</h2>${tab(['SDR','Cadastrados','Com retorno','Bons','Encaminhados','Descartados'],r.porSdr)}</div>
+<div class="bloco"><h2>Por SDR</h2>${tab(['SDR','Cadastrados','Responderam','Bons','Encaminhados','Descartados'],r.porSdr,'Nenhum contato cadastrado neste período.')}</div>
 <div class="duas">
-<div class="bloco"><h2>Por vendedora</h2>${tab(['Vendedora','Recebidos','Bons','Médios','Ruins'],r.porVend,'Nada encaminhado neste período.')}</div>
+<div class="bloco"><h2>Por vendedora</h2>${tab(['Vendedora','Recebidos','Bons','Médios','Ruins'],r.porVend,'Nenhuma vendedora cadastrada.')}</div>
 <div class="bloco"><h2>Por praça</h2>${tab(['Praça','Dona','Contatos','Bons','Encam.'],r.porPraca)}</div>
 </div>
 <div class="duas">
 <div class="bloco"><h2>Por origem</h2>${bar(contar(r.base,c=>ORIGENS[c.origem]||c.origem))}</div>
 <div class="bloco"><h2>Por interesse</h2>${bar(contar(r.base,c=>INTERESSES[c.interesse]||(c.interesse||'Não informado')))}</div>
 </div>
-<div class="bloco"><h2>Motivos de descarte</h2>${bar(contar(r.base.filter(c=>c.status==='descartado'),c=>c.motivo_descarte))}</div>
-<p class="nota">Recebidos, retorno, avaliação, origem e descartes contam os contatos que chegaram no período. Vendedoras e tempo até encaminhar contam os encaminhamentos feitos no período. A situação de hoje considera todos os contatos em aberto.</p>
+<div class="bloco"><h2>Motivos de descarte</h2>${bar(contar(r.base.filter(c=>c.status==='descartado'),c=>c.motivo_descarte),'Nenhum contato descartado neste período.')}</div>
+<p class="nota">Recebidos, respostas, avaliação, origem e descartes contam os contatos cadastrados no período. Vendedoras e tempo até a vendedora contam os encaminhamentos feitos no período. Tentativas atrasadas e sem andamento consideram todos os contatos em aberto hoje.</p>
 <footer><span>Open Soluções Tributárias · Hub SDR</span><span>${esc(periodoPorExtenso(P))}</span></footer>
 <script>addEventListener('load',()=>setTimeout(()=>print(),300));<\/script>
 </body></html>`;
@@ -548,10 +548,10 @@ ${k('Tempo até encaminhar', tempoMedio(r.enc), 'média do período')}
 }
 function exportarPlanilha(){
   const seguro = v => { const t=String(v??'').replace(/[\r\n]+/g,' '); return `"${(/^[=+\-@]/.test(t)?"'"+t:t).replace(/"/g,'""')}"`; };
-  const cab = ['Chegou','Nome','Empresa','Telefone','E-mail','Cidade','UF','Praça','Origem','Interesse','Situação','Teve retorno','Avaliação','Vendedora','Encaminhado em','Motivo do descarte','Cadastrado por','Necessidade'];
+  const cab = ['Chegou','Nome','Empresa','Telefone','E-mail','Cidade','UF','Praça','Origem','Interesse','Situação','Respondeu','Avaliação','Vendedora','Encaminhado em','Motivo do descarte','Cadastrado por','Necessidade'];
   const linhas = baseRelatorio().map(c=>[quando(c.criado_em),c.nome,c.empresa,c.telefone,c.email,c.cidade,c.uf,praca(c.praca_id)?.nome,ORIGENS[c.origem]||c.origem,INTERESSES[c.interesse]||c.interesse,STATUS[c.status],
     c.teve_retorno==null?'':c.teve_retorno?'Sim':'Não',AVALIACAO[c.avaliacao],vendedora(c.vendedora_id)?.nome,quando(c.encaminhado_em),c.motivo_descarte,membro(c.criado_por),c.observacoes]);
-  if(!linhas.length) return aviso('Nada neste período para exportar.');
+  if(!linhas.length) return aviso('Nenhum contato neste período para exportar.');
   const csv = '﻿'+[cab,...linhas].map(l=>l.map(seguro).join(';')).join('\r\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
@@ -590,7 +590,7 @@ function lista(){
   $('lista').innerHTML = l.length ? `<div class="rolagem"><table class="tabela"><thead><tr><th>Contato</th><th>Local</th><th>Situação</th><th>Avaliação</th><th>Vendedora</th><th>Chegou</th></tr></thead><tbody>
   ${l.map(c=>`<tr class="link" data-a="abrir" data-v="${c.id}"><td><b>${esc(c.nome)}</b>${linhaContato(c)}</td>
     <td>${esc([c.cidade,c.uf].filter(Boolean).join(' / '))}<small>${esc(praca(c.praca_id)?.nome)}</small></td>
-    <td><span class="chip st-${c.status}">${STATUS[c.status]}</span>${c.retornar_em&&!['encaminhado','descartado'].includes(c.status)?`<small class="${c.retornar_em<h?'atrasado':''}">retornar ${dia(c.retornar_em)}</small>`:''}</td>
+    <td><span class="chip st-${c.status}">${STATUS[c.status]}</span>${c.retornar_em&&!['encaminhado','descartado'].includes(c.status)?`<small class="${c.retornar_em<h?'atrasado':''}">tentar de novo ${dia(c.retornar_em)}</small>`:''}</td>
     <td>${c.avaliacao?`<span class="chip av-${c.avaliacao}">${AVALIACAO[c.avaliacao]}</span>`:'<small>Sem avaliação</small>'}</td>
     <td>${esc(vendedora(c.vendedora_id)?.nome)}</td><td>${dia(isoDia(new Date(c.criado_em)))}</td></tr>`).join('')}
   </tbody></table></div>` : `<div class="cartao"><div class="vazio">${S.contatos.length?'Nenhum contato com esses filtros.':'Nenhum contato ainda. Clique em "+ Novo contato" para lançar o primeiro.'}</div></div>`;
@@ -700,8 +700,8 @@ function desenharFicha(){
   const aberto=!['encaminhado','descartado'].includes(c.status);
   let etapas='';
   if(aberto){
-    etapas=`<div class="etapa ${c.teve_retorno==null?'foco':''}"><h4>1. ${ehProspeccao(c)?'Contato feito?':'Teve retorno do cliente?'}</h4><div class="opcoes">
-      <button class="btn ${c.teve_retorno===true?'on':''}" data-a="retorno" data-v="sim">Sim</button><button class="btn ${c.teve_retorno===false?'on':''}" data-a="retorno" data-v="nao">Ainda não</button></div>
+    etapas=`<div class="etapa ${c.teve_retorno==null?'foco':''}"><h4>1. ${ehProspeccao(c)?'Contato feito?':'O cliente respondeu?'}</h4><div class="opcoes">
+      <button class="btn ${c.teve_retorno===true?'on':''}" data-a="retorno" data-v="sim">Sim</button><button class="btn ${c.teve_retorno===false?'on':''}" data-a="retorno" data-v="nao">${ehProspeccao(c)?'Ainda não':'Não respondeu'}</button></div>
       ${c.teve_retorno===false?`<div class="linha"><div><label for="m_data">Tentar de novo em</label><input type="date" id="m_data" value="${esc(c.retornar_em)}"></div></div>${b.motivo}`:''}</div>`;
     if(c.teve_retorno) etapas+=`<div class="etapa ${!c.avaliacao?'foco':''}"><h4>2. O cliente é bom?</h4><div class="opcoes">
       ${Object.entries(AVALIACAO).map(([k,n])=>`<button class="btn ${c.avaliacao===k?'on':''}" data-a="avaliar" data-v="${k}">${n}</button>`).join('')}</div></div>`;
