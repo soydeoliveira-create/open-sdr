@@ -384,14 +384,14 @@ function telaFila(prosp){
 // ---------- relatórios (só gestão)
 const baseRelatorio = () => S.contatos.filter(c=>noPeriodo(c.criado_em,S.periodoRel));
 const duracao = horas => horas<1 ? `${Math.max(1,Math.round(horas*60))} min` : horas<24 ? `${Math.round(horas)} h` : `${(horas/24).toFixed(1).replace('.',',')} dias`;
-// Do cadastro ao clique em "Seguir para a vendedora", só de quem foi encaminhado.
+// Do cadastro ao clique em "Seguir para a vendedora", só de quem foi encaminhado e procurou a Open (prospecção fica de fora).
 function tempoAteVendedora(lista){
-  const horas = lista.filter(c=>c.encaminhado_em).map(c=>Math.max(0,(new Date(c.encaminhado_em)-new Date(c.criado_em))/36e5)).sort((a,b)=>a-b);
-  if(!horas.length) return {valor:'–', detalhe:'nenhum encaminhamento no período'};
+  const horas = lista.filter(c=>c.encaminhado_em&&!ehProspeccao(c)).map(c=>Math.max(0,(new Date(c.encaminhado_em)-new Date(c.criado_em))/36e5)).sort((a,b)=>a-b);
+  if(!horas.length) return {valor:'–', detalhe:'nenhum encaminhamento no período (sem prospecção)'};
   const meio = horas.length/2, mediana = horas.length%2 ? horas[Math.floor(meio)] : (horas[meio-1]+horas[meio])/2;
   const media = horas.reduce((a,b)=>a+b,0)/horas.length;
   const n = horas.length;
-  return {valor: duracao(mediana), detalhe: n===1 ? '1 encaminhado no período' : `metade dos ${n} encaminhados saiu em até esse tempo · média ${duracao(media)}`};
+  return {valor: duracao(mediana), detalhe: n===1 ? '1 encaminhado no período, sem prospecção' : `metade dos ${n} encaminhados (sem prospecção) saiu em até esse tempo · média ${duracao(media)}`};
 }
 function tabela(cabecalho, linhas, vazio){
   if(!linhas.length) return `<div class="vazio">${vazio}</div>`;
@@ -549,7 +549,7 @@ ${(t=>k('Tempo até a vendedora', t.valor, t.detalhe))(tempoAteVendedora(r.enc))
 <div class="bloco"><h2>Por interesse</h2>${bar(contar(r.base,c=>INTERESSES[c.interesse]||(c.interesse||'Não informado')))}</div>
 </div>
 <div class="bloco"><h2>Motivos de descarte</h2>${bar(contar(r.base.filter(c=>c.status==='descartado'),c=>c.motivo_descarte),'Nenhum contato descartado neste período.')}</div>
-<p class="nota">Recebidos, respostas, avaliação, origem e descartes contam os contatos cadastrados no período. Vendedoras e tempo até a vendedora contam os encaminhamentos feitos no período; o tempo vai do cadastro ao encaminhamento e inclui a espera pela resposta do cliente. Tentativas atrasadas e sem andamento consideram todos os contatos em aberto hoje.</p>
+<p class="nota">Recebidos, respostas, avaliação, origem e descartes contam os contatos cadastrados no período. Vendedoras e tempo até a vendedora contam os encaminhamentos feitos no período; o tempo vai do cadastro ao encaminhamento, inclui a espera pela resposta do cliente e não conta a prospecção ativa. Tentativas atrasadas e sem andamento consideram todos os contatos em aberto hoje.</p>
 <footer><span>Open Soluções Tributárias · Hub SDR</span><span>${esc(periodoPorExtenso(P))}</span></footer>
 <script>addEventListener('load',()=>setTimeout(()=>print(),300));<\/script>
 </body></html>`;
