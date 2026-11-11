@@ -70,6 +70,9 @@ textarea{resize:vertical;min-height:62px}
 
 /* números e cartões */
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.kpis.cinco{grid-template-columns:repeat(5,minmax(0,1fr))}
+.kpis.tres{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:12px}
+.soma{margin:8px 2px 0;color:var(--muted);font-size:12.5px}
 .kpi,.cartao{background:#fff;border:1px solid var(--line);border-radius:14px}
 .kpi{padding:14px 16px}
 .kpi span{display:block;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
@@ -158,7 +161,7 @@ label{display:block;font-size:12px;font-weight:600;color:#3B4C60;margin-bottom:3
 #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;z-index:50;max-width:90vw}
 
 @media (max-width:980px){
-  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kpis,.kpis.cinco,.kpis.tres{grid-template-columns:repeat(2,minmax(0,1fr))}
   .dupla{grid-template-columns:1fr}
 }
 @media (max-width:760px){
@@ -392,11 +395,11 @@ const baseRelatorio = () => S.contatos.filter(c=>noPeriodo(c.criado_em,S.periodo
 const ehQuente = c => c.status==='encaminhado' && c.avaliacao==='bom';
 // Percentual sem casas decimais, com uma casa abaixo de 10% para não virar zero.
 const percentual = (a,b) => { if(!b) return '0%'; const p=a/b*100; return (p>0&&p<10 ? p.toFixed(1).replace('.',',') : Math.round(p))+'%'; };
-// Em aberto = nem encaminhado nem descartado. "Sem marcação" = cadastrado e ninguém respondeu à pergunta da ficha.
-function divisaoAbertos(l){
-  const n = s => l.filter(c=>c.status===s).length;
-  return [[n('novo'),'sem marcação'],[n('atendimento'),'responderam, aguardam decisão'],[n('sem_retorno'),'não respondem']]
-    .filter(([v])=>v).map(([v,t])=>`${v} ${t}`).join(' · ') || 'nenhum';
+function somaCaminho(total, responderam, semResposta, descSemResposta){
+  if(!total) return '';
+  const partes = [`${responderam} responderam`, `${semResposta} em aberto`];
+  if(descSemResposta) partes.push(`${descSemResposta} ${descSemResposta===1?'descartado':'descartados'} sem resposta`);
+  return `${total} que chegaram = ${partes.join(' + ')}`;
 }
 const duracao = horas => horas<1 ? `${Math.max(1,Math.round(horas*60))} min` : horas<24 ? `${Math.round(horas)} h` : `${(horas/24).toFixed(1).replace('.',',')} dias`;
 // Do cadastro ao clique em "Seguir para a vendedora", só de quem foi encaminhado e procurou a Open (prospecção fica de fora).
@@ -432,13 +435,15 @@ function dadosRelatorio(){
   const porPraca = [...new Set(base.map(c=>c.praca_id))].map(id=>{ const l=base.filter(c=>c.praca_id===id);
     return [praca(id)?.nome||'Sem praça', vendedora(praca(id)?.vendedora_id)?.nome||'', l.length, conta(l,c=>c.avaliacao==='bom'), conta(l,c=>c.status==='encaminhado')]; }).sort((a,b)=>b[2]-a[2]);
   const bonsParados = abertos.filter(c=>c.avaliacao==='bom').sort((a,b)=>a.criado_em.localeCompare(b.criado_em));
+  const semResposta = conta(base,c=>!c.teve_retorno&&c.status!=='descartado');
+  const descSemResposta = conta(base,c=>!c.teve_retorno&&c.status==='descartado');
   const quentes = conta(base,ehQuente);
   const entrada = base.filter(c=>!ehProspeccao(c)), prosp = base.filter(ehProspeccao);
   const quente = {total:quentes, pct:percentual(quentes,base.length), entrada:[conta(entrada,ehQuente),entrada.length], prosp:[conta(prosp,ehQuente),prosp.length]};
-  return {quente,bonsParados,base,h,enc,conta,pct,abertos,atrasados,parados,retorno,bons,encBase,desc,porSdr,porVend,porPraca};
+  return {semResposta,descSemResposta,quente,bonsParados,base,h,enc,conta,pct,abertos,atrasados,parados,retorno,bons,encBase,desc,porSdr,porVend,porPraca};
 }
 function telaRelatorios(){
-  const {quente,bonsParados,base,h,enc,conta,pct,abertos,atrasados,parados,retorno,bons,encBase,desc,porSdr,porVend,porPraca} = dadosRelatorio();
+  const {semResposta,descSemResposta,quente,bonsParados,base,h,enc,conta,pct,abertos,atrasados,parados,retorno,bons,encBase,desc,porSdr,porVend,porPraca} = dadosRelatorio();
   const tempo = tempoAteVendedora(enc);
   const P = {hoje:'Hoje',semana:'7 dias',mes:'Este mês',anterior:'Mês passado',tudo:'Tudo'};
   $('tela').innerHTML = `
@@ -448,10 +453,17 @@ function telaRelatorios(){
   <div class="quente"><div><span>Leads quentes para a closer</span><b>${quente.pct}</b></div>
     <p><strong>${quente.total} de ${base.length}</strong> ${base.length===1?'contato recebido':'contatos recebidos'} no período seguiram para a closer como cliente bom.<br>
     Procuraram a Open: <strong>${percentual(...quente.entrada)}</strong> (${quente.entrada[0]} de ${quente.entrada[1]}) · Prospecção: <strong>${percentual(...quente.prosp)}</strong> (${quente.prosp[0]} de ${quente.prosp[1]})</p></div>
-  <div class="kpis">
-    <div class="kpi"><span>Em aberto agora</span><b>${abertos.length}</b><small>${divisaoAbertos(abertos)}</small></div>
-    <div class="kpi"><span>Tentativas atrasadas</span><b>${atrasados}</b><small>nova tentativa com data vencida</small></div>
-    <div class="kpi"><span>Sem andamento há 3+ dias</span><b>${parados.length}</b><small>em aberto, sem nenhuma ação</small></div>
+  <div class="kpis cinco">
+    <div class="kpi"><span>Contatos que chegaram</span><b>${base.length}</b><small>entrada e prospecção</small></div>
+    <div class="kpi"><span>Responderam a SDR</span><b>${retorno}</b><small>${percentual(retorno,base.length)} dos que chegaram</small></div>
+    <div class="kpi"><span>Contatos bons</span><b>${bons}</b><small>${percentual(bons,base.length)} dos que chegaram</small></div>
+    <div class="kpi"><span>Encaminhados</span><b>${encBase}</b><small>${percentual(encBase,base.length)} dos que chegaram</small></div>
+    <div class="kpi"><span>Em aberto</span><b>${semResposta}</b><small>ainda não responderam a SDR</small></div>
+  </div>
+  ${base.length?`<p class="soma">${somaCaminho(base.length,retorno,semResposta,descSemResposta)}</p>`:''}
+  <div class="kpis tres">
+    <div class="kpi"><span>Tentativas atrasadas</span><b>${atrasados}</b><small>hoje: nova tentativa com data vencida</small></div>
+    <div class="kpi"><span>Sem andamento há 3+ dias</span><b>${parados.length}</b><small>hoje: em aberto, sem nenhuma ação</small></div>
     <div class="kpi"><span>Tempo até a vendedora</span><b>${tempo.valor}</b><small>${tempo.detalhe}</small></div>
   </div>
   <div class="dupla">
@@ -545,16 +557,17 @@ footer{margin-top:14px;padding-top:8px;border-top:1px solid #E3E9F0;color:#66768
 
 <div class="quente"><div><span>LEADS QUENTES PARA A CLOSER</span><b>${r.quente.pct}</b></div><p><strong>${r.quente.total} de ${total}</strong> contatos recebidos no período seguiram para a closer como cliente bom.<br>Procuraram a Open: <strong>${percentual(...r.quente.entrada)}</strong> (${r.quente.entrada[0]} de ${r.quente.entrada[1]}) · Prospecção: <strong>${percentual(...r.quente.prosp)}</strong> (${r.quente.prosp[0]} de ${r.quente.prosp[1]})</p></div>
 <div class="bloco"><h2>Resumo do período</h2>
-<div class="ks">
-${k('Contatos recebidos', total, 'entrada e prospecção')}
-${k('Responderam', r.retorno, `${r.pct(r.retorno,total)} dos recebidos`)}
-${k('Clientes bons', r.bons, `${r.pct(r.bons,total)} dos recebidos`)}
-${k('Encaminhados', r.encBase, `${r.pct(r.encBase,total)} dos recebidos`)}
+<div class="ks" style="grid-template-columns:repeat(5,1fr)">
+${k('Contatos que chegaram', total, 'entrada e prospecção')}
+${k('Responderam a SDR', r.retorno, `${percentual(r.retorno,total)} dos que chegaram`)}
+${k('Contatos bons', r.bons, `${percentual(r.bons,total)} dos que chegaram`)}
+${k('Encaminhados', r.encBase, `${percentual(r.encBase,total)} dos que chegaram`)}
+${k('Em aberto', r.semResposta, 'ainda não responderam a SDR')}
 </div>
-<div class="ks">
-${k('Em aberto hoje', r.abertos.length, divisaoAbertos(r.abertos))}
-${k('Tentativas atrasadas', r.atrasados, 'nova tentativa com data vencida')}
-${k('Sem andamento há 3+ dias', r.parados.length, 'em aberto, sem nenhuma ação')}
+${total?`<p class="nota" style="margin-top:6px">${somaCaminho(total,r.retorno,r.semResposta,r.descSemResposta)}</p>`:''}
+<div class="ks" style="grid-template-columns:repeat(3,1fr)">
+${k('Tentativas atrasadas', r.atrasados, 'hoje: nova tentativa com data vencida')}
+${k('Sem andamento há 3+ dias', r.parados.length, 'hoje: em aberto, sem nenhuma ação')}
 ${(t=>k('Tempo até a vendedora', t.valor, t.detalhe))(tempoAteVendedora(r.enc))}
 </div></div>
 
