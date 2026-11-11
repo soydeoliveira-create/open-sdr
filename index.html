@@ -73,6 +73,7 @@ textarea{resize:vertical;min-height:62px}
 .kpis.seis{grid-template-columns:repeat(6,minmax(0,1fr))}
 .kpis.tres{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:12px}
 .soma{margin:8px 2px 0;color:var(--muted);font-size:12.5px}
+h3.grupo{font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#3B4C60;margin:18px 2px 8px}
 .kpi,.cartao{background:#fff;border:1px solid var(--line);border-radius:14px}
 .kpi{padding:14px 16px}
 .kpi span{display:block;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
@@ -395,12 +396,18 @@ const baseRelatorio = () => S.contatos.filter(c=>noPeriodo(c.criado_em,S.periodo
 const ehQuente = c => c.status==='encaminhado' && c.avaliacao==='bom';
 // Percentual sem casas decimais, com uma casa abaixo de 10% para não virar zero.
 const percentual = (a,b) => { if(!b) return '0%'; const p=a/b*100; return (p>0&&p<10 ? p.toFixed(1).replace('.',',') : Math.round(p))+'%'; };
-function somaCaminho(total, entrada, prospectados, responderam, semResposta, descSemResposta){
-  if(!total) return '';
-  const partes = [`${responderam} responderam`, `${semResposta} em aberto`];
-  if(descSemResposta) partes.push(`${descSemResposta} ${descSemResposta===1?'descartado':'descartados'} sem resposta`);
-  const daOpen = `${entrada} procuraram a Open (${partes.join(' + ')})`;
-  return prospectados ? `${total} que chegaram = ${daOpen} + ${prospectados} de prospecção ativa` : `${total} que chegaram = ${partes.join(' + ')}`;
+function resumoGrupo(lista, prosp){
+  const n = lista.length, conta = f => lista.filter(f).length, pc = v => `${percentual(v,n)} ${prosp?'das prospecções':'dos que chegaram'}`;
+  const responderam = conta(c=>c.teve_retorno), semResposta = conta(c=>!c.teve_retorno&&c.status!=='descartado'), descSem = conta(c=>!c.teve_retorno&&c.status==='descartado');
+  const bons = conta(c=>c.avaliacao==='bom'), medios = conta(c=>c.avaliacao==='medio'), enc = conta(c=>c.status==='encaminhado');
+  const T = prosp
+    ? {titulo:'Prospecção ativa', total:'Prospecções cadastradas', resp:'Contato feito', aberto:'Sem contato', abertoSub:'ainda sem contato feito', partes:['com contato feito','sem contato'], desc:['descartada sem contato','descartadas sem contato']}
+    : {titulo:'Procuraram a Open', total:'Contatos que chegaram', resp:'Responderam a SDR', aberto:'Em aberto', abertoSub:'ainda não responderam a SDR', partes:['responderam','em aberto'], desc:['descartado sem resposta','descartados sem resposta']};
+  const partes = [`${responderam} ${T.partes[0]}`, `${semResposta} ${T.partes[1]}`];
+  if(descSem) partes.push(`${descSem} ${T.desc[descSem===1?0:1]}`);
+  return {titulo:T.titulo, n, responderam, bons, medios, enc,
+    cards:[[T.total,n,prosp?'busca ativa da SDR':'procuraram a Open'],[T.resp,responderam,pc(responderam)],['Contatos bons',bons,pc(bons)],['Contatos médios',medios,pc(medios)],['Encaminhados',enc,pc(enc)],[T.aberto,semResposta,T.abertoSub]],
+    soma: n ? `${n} = ${partes.join(' + ')}` : ''};
 }
 const duracao = horas => horas<1 ? `${Math.max(1,Math.round(horas*60))} min` : horas<24 ? `${Math.round(horas)} h` : `${(horas/24).toFixed(1).replace('.',',')} dias`;
 // Do cadastro ao clique em "Seguir para a vendedora", só de quem foi encaminhado e procurou a Open (prospecção fica de fora).
@@ -455,24 +462,19 @@ function telaRelatorios(){
   <div class="quente"><div><span>Leads quentes para a closer</span><b>${quente.pct}</b></div>
     <p><strong>${quente.total} de ${base.length}</strong> ${base.length===1?'contato recebido':'contatos recebidos'} no período seguiram para a closer como cliente bom.<br>
     Procuraram a Open: <strong>${percentual(...quente.entrada)}</strong> (${quente.entrada[0]} de ${quente.entrada[1]}) · Prospecção: <strong>${percentual(...quente.prosp)}</strong> (${quente.prosp[0]} de ${quente.prosp[1]})</p></div>
-  <div class="kpis seis">
-    <div class="kpi"><span>Contatos que chegaram</span><b>${base.length}</b><small>entrada e prospecção</small></div>
-    <div class="kpi"><span>Responderam a SDR</span><b>${retorno}</b><small>${percentual(retorno,entrada)} dos que procuraram a Open (sem prospecção)</small></div>
-    <div class="kpi"><span>Contatos bons</span><b>${bons}</b><small>${percentual(bons,base.length)} dos que chegaram</small></div>
-    <div class="kpi"><span>Contatos médios</span><b>${medios}</b><small>${percentual(medios,base.length)} dos que chegaram</small></div>
-    <div class="kpi"><span>Encaminhados</span><b>${encBase}</b><small>${percentual(encBase,base.length)} dos que chegaram</small></div>
-    <div class="kpi"><span>Em aberto</span><b>${semResposta}</b><small>procuraram a Open e ainda não responderam</small></div>
-  </div>
-  ${base.length?`<p class="soma">${somaCaminho(base.length,entrada,prospectados,retorno,semResposta,descSemResposta)}</p>`:''}
+  ${[false,true].map(p=>resumoGrupo(base.filter(c=>ehProspeccao(c)===p),p)).map(g=>`
+  <h3 class="grupo">${g.titulo}</h3>
+  <div class="kpis seis">${g.cards.map(([rot,val,sub])=>`<div class="kpi"><span>${rot}</span><b>${val}</b><small>${sub}</small></div>`).join('')}</div>
+  ${g.soma?`<p class="soma">Conta: ${g.soma}</p>`:''}`).join('')}
   <div class="kpis tres">
     <div class="kpi"><span>Tentativas atrasadas</span><b>${atrasados}</b><small>hoje: nova tentativa com data vencida</small></div>
     <div class="kpi"><span>Sem andamento há 3+ dias</span><b>${parados.length}</b><small>hoje: em aberto, sem nenhuma ação</small></div>
     <div class="kpi"><span>Tempo até a vendedora</span><b>${tempo.valor}</b><small>${tempo.detalhe}</small></div>
   </div>
   <div class="dupla">
-    <div class="cartao"><h2>Do contato ao encaminhamento <small>contatos que chegaram no período</small></h2>
-      ${base.length?barras([['Recebidos',base.length],['Responderam (sem prospecção)',retorno],['Clientes bons',bons],['Clientes médios',medios],['Encaminhados',encBase],['Descartados',desc]]):'<div class="vazio">Nenhum contato cadastrado neste período.</div>'}
-      ${base.length?`<small style="color:var(--muted)">${pct(encBase,base.length)} dos recebidos foram encaminhados.</small>`:''}</div>
+    ${(g=>`<div class="cartao"><h2>Do contato ao encaminhamento <small>procuraram a Open</small></h2>
+      ${g.n?barras([['Chegaram',g.n],['Responderam',g.responderam],['Clientes bons',g.bons],['Clientes médios',g.medios],['Encaminhados',g.enc]]):'<div class="vazio">Ninguém procurou a Open neste período.</div>'}
+      ${g.n?`<small style="color:var(--muted)">${percentual(g.enc,g.n)} dos que procuraram a Open foram encaminhados.</small>`:''}</div>`)(resumoGrupo(base.filter(c=>!ehProspeccao(c)),false))}
     <div class="cartao"><h2>Motivos de descarte</h2>${barras(contar(base.filter(c=>c.status==='descartado'),c=>c.motivo_descarte),'Nenhum contato descartado neste período.')}</div>
   </div>
   <div class="cartao" style="margin-top:12px"><h2>Por SDR <small>quem cadastrou</small></h2>${tabela(['SDR','Cadastrados','Responderam','Bons','Médios','Encaminhados','Descartados','% quentes'],porSdr,'Nenhum contato cadastrado neste período.')}</div>
@@ -537,7 +539,8 @@ body{margin:0;font:10.5px/1.45 Inter,"Segoe UI",Arial,sans-serif;color:#0A2742}
 .capa h1{margin:3px 0 2px;font-size:20px}
 .quente{display:flex;align-items:center;gap:18px;margin-top:10px;border:1px solid #CBD6E2;border-left:5px solid #0E6EA8;border-radius:8px;padding:10px 14px}
 .quente span{display:block;font-size:8.5px;font-weight:800;letter-spacing:.1em;color:#66768A}.quente b{display:block;font-size:30px;line-height:1.1;color:#073B64}
-.quente p{margin:0;font-size:10.5px}.capa p{margin:0;font-size:11px;color:#DCE7F3}
+.quente p{margin:0;font-size:10.5px}
+h3.grupo{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:#3B4C60;margin:12px 0 0}.capa p{margin:0;font-size:11px;color:#DCE7F3}
 h2{font-size:12.5px;margin:18px 0 8px;padding-bottom:4px;border-bottom:2px solid #0E6EA8;color:#073B64}
 .ks{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
 .k{border:1px solid #E3E9F0;border-radius:8px;padding:9px 11px}
@@ -560,15 +563,9 @@ footer{margin-top:14px;padding-top:8px;border-top:1px solid #E3E9F0;color:#66768
 
 <div class="quente"><div><span>LEADS QUENTES PARA A CLOSER</span><b>${r.quente.pct}</b></div><p><strong>${r.quente.total} de ${total}</strong> contatos recebidos no período seguiram para a closer como cliente bom.<br>Procuraram a Open: <strong>${percentual(...r.quente.entrada)}</strong> (${r.quente.entrada[0]} de ${r.quente.entrada[1]}) · Prospecção: <strong>${percentual(...r.quente.prosp)}</strong> (${r.quente.prosp[0]} de ${r.quente.prosp[1]})</p></div>
 <div class="bloco"><h2>Resumo do período</h2>
-<div class="ks" style="grid-template-columns:repeat(6,1fr)">
-${k('Contatos que chegaram', total, 'entrada e prospecção')}
-${k('Responderam a SDR', r.retorno, `${percentual(r.retorno,r.entrada)} dos que procuraram a Open (sem prospecção)`)}
-${k('Contatos bons', r.bons, `${percentual(r.bons,total)} dos que chegaram`)}
-${k('Contatos médios', r.medios, `${percentual(r.medios,total)} dos que chegaram`)}
-${k('Encaminhados', r.encBase, `${percentual(r.encBase,total)} dos que chegaram`)}
-${k('Em aberto', r.semResposta, 'procuraram a Open e ainda não responderam')}
-</div>
-${total?`<p class="nota" style="margin-top:6px">${somaCaminho(total,r.entrada,r.prospectados,r.retorno,r.semResposta,r.descSemResposta)}</p>`:''}
+${[false,true].map(p=>resumoGrupo(r.base.filter(c=>ehProspeccao(c)===p),p)).map(g=>`<h3 class="grupo">${g.titulo}</h3>
+<div class="ks" style="grid-template-columns:repeat(6,1fr);margin-top:4px">${g.cards.map(([rot,val,sub])=>k(rot,val,sub)).join('')}</div>
+${g.soma?`<p class="nota" style="margin-top:5px">Conta: ${g.soma}</p>`:''}`).join('')}
 <div class="ks" style="grid-template-columns:repeat(3,1fr)">
 ${k('Tentativas atrasadas', r.atrasados, 'hoje: nova tentativa com data vencida')}
 ${k('Sem andamento há 3+ dias', r.parados.length, 'hoje: em aberto, sem nenhuma ação')}
@@ -576,7 +573,7 @@ ${(t=>k('Tempo até a vendedora', t.valor, t.detalhe))(tempoAteVendedora(r.enc))
 </div></div>
 
 <div class="duas">
-<div class="bloco"><h2>Do contato ao encaminhamento</h2>${total?bar([['Recebidos',total],['Responderam (sem prospecção)',r.retorno],['Clientes bons',r.bons],['Clientes médios',r.medios],['Encaminhados',r.encBase],['Descartados',r.desc]]):'<p class="vazio">Nenhum contato cadastrado neste período.</p>'}</div>
+${(g=>`<div class="bloco"><h2>Do contato ao encaminhamento · procuraram a Open</h2>${g.n?bar([['Chegaram',g.n],['Responderam',g.responderam],['Clientes bons',g.bons],['Clientes médios',g.medios],['Encaminhados',g.enc]]):'<p class="vazio">Ninguém procurou a Open neste período.</p>'}</div>`)(resumoGrupo(r.base.filter(c=>!ehProspeccao(c)),false))}
 <div class="bloco"><h2>Entrada x prospecção</h2>${tab(['Canal','Receb.','Resp.','Bons','Médios','Encam.','Desc.','% quentes'],[linhaCanal('Procuraram a Open',daProsp(false)),linhaCanal('Prospecção ativa',daProsp(true),false)])}</div>
 </div>
 
