@@ -75,6 +75,12 @@ textarea{resize:vertical;min-height:62px}
 .kpi span{display:block;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
 .kpi b{display:block;font-size:28px;font-weight:800;margin-top:3px;font-variant-numeric:tabular-nums}
 .kpi small{color:var(--muted);font-size:12px}
+.quente{display:flex;align-items:center;gap:22px;background:linear-gradient(100deg,#0C2A47,#1E4F8C);color:#fff;border-radius:14px;padding:16px 20px;margin-bottom:12px}
+.quente span{display:block;font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#B8CBE0}
+.quente b{display:block;font-size:40px;font-weight:800;line-height:1.1}
+.quente p{margin:0;font-size:13.5px;color:#DCE7F3;border-left:1px solid rgba(255,255,255,.25);padding-left:20px}
+.quente strong{color:#fff}
+@media (max-width:760px){.quente{flex-direction:column;align-items:flex-start;gap:8px}.quente p{border:0;padding:0}}
 .dupla{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}
 .cartao{padding:15px 16px;min-width:0}
 .cartao>h2{font-size:13.5px;font-weight:800;margin-bottom:10px}
@@ -383,6 +389,9 @@ function telaFila(prosp){
 
 // ---------- relatórios (só gestão)
 const baseRelatorio = () => S.contatos.filter(c=>noPeriodo(c.criado_em,S.periodoRel));
+const ehQuente = c => c.status==='encaminhado' && c.avaliacao==='bom';
+// Percentual sem casas decimais, com uma casa abaixo de 10% para não virar zero.
+const percentual = (a,b) => { if(!b) return '0%'; const p=a/b*100; return (p>0&&p<10 ? p.toFixed(1).replace('.',',') : Math.round(p))+'%'; };
 // Em aberto = nem encaminhado nem descartado. "Sem marcação" = cadastrado e ninguém respondeu à pergunta da ficha.
 function divisaoAbertos(l){
   const n = s => l.filter(c=>c.status===s).length;
@@ -417,22 +426,28 @@ function dadosRelatorio(){
   const retorno = conta(base,c=>c.teve_retorno), bons = conta(base,c=>c.avaliacao==='bom');
   const encBase = conta(base,c=>c.status==='encaminhado'), desc = conta(base,c=>c.status==='descartado');
   const porSdr = [...new Set(base.map(c=>c.criado_por))].map(id=>{ const l=base.filter(c=>c.criado_por===id);
-    return [membro(id)||'Sem autor', l.length, conta(l,c=>c.teve_retorno), conta(l,c=>c.avaliacao==='bom'), conta(l,c=>c.status==='encaminhado'), conta(l,c=>c.status==='descartado')]; }).sort((a,b)=>b[1]-a[1]);
+    return [membro(id)||'Sem autor', l.length, conta(l,c=>c.teve_retorno), conta(l,c=>c.avaliacao==='bom'), conta(l,c=>c.status==='encaminhado'), conta(l,c=>c.status==='descartado'), percentual(conta(l,ehQuente),l.length)]; }).sort((a,b)=>b[1]-a[1]);
   const porVend = S.vendedoras.filter(v=>v.ativa||enc.some(c=>c.vendedora_id===v.id)).map(v=>{ const l=enc.filter(c=>c.vendedora_id===v.id);
     return [v.nome, l.length, conta(l,c=>c.avaliacao==='bom'), conta(l,c=>c.avaliacao==='medio'), conta(l,c=>c.avaliacao==='ruim')]; }).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
   const porPraca = [...new Set(base.map(c=>c.praca_id))].map(id=>{ const l=base.filter(c=>c.praca_id===id);
     return [praca(id)?.nome||'Sem praça', vendedora(praca(id)?.vendedora_id)?.nome||'', l.length, conta(l,c=>c.avaliacao==='bom'), conta(l,c=>c.status==='encaminhado')]; }).sort((a,b)=>b[2]-a[2]);
   const bonsParados = abertos.filter(c=>c.avaliacao==='bom').sort((a,b)=>a.criado_em.localeCompare(b.criado_em));
-  return {bonsParados,base,h,enc,conta,pct,abertos,atrasados,parados,retorno,bons,encBase,desc,porSdr,porVend,porPraca};
+  const quentes = conta(base,ehQuente);
+  const entrada = base.filter(c=>!ehProspeccao(c)), prosp = base.filter(ehProspeccao);
+  const quente = {total:quentes, pct:percentual(quentes,base.length), entrada:[conta(entrada,ehQuente),entrada.length], prosp:[conta(prosp,ehQuente),prosp.length]};
+  return {quente,bonsParados,base,h,enc,conta,pct,abertos,atrasados,parados,retorno,bons,encBase,desc,porSdr,porVend,porPraca};
 }
 function telaRelatorios(){
-  const {bonsParados,base,h,enc,conta,pct,abertos,atrasados,parados,retorno,bons,encBase,desc,porSdr,porVend,porPraca} = dadosRelatorio();
+  const {quente,bonsParados,base,h,enc,conta,pct,abertos,atrasados,parados,retorno,bons,encBase,desc,porSdr,porVend,porPraca} = dadosRelatorio();
   const tempo = tempoAteVendedora(enc);
   const P = {hoje:'Hoje',semana:'7 dias',mes:'Este mês',anterior:'Mês passado',tudo:'Tudo'};
   $('tela').innerHTML = `
   <div class="barra"><span class="rotulo">PERÍODO:</span>
     <div class="pilulas">${Object.entries(P).map(([k,v])=>`<button class="${S.periodoRel===k?'on':''}" data-a="periodoRel" data-v="${k}">${v}</button>`).join('')}</div>
     <div class="dir-auto"><button class="btn" data-a="exportar">Exportar planilha</button><button class="btn pri" data-a="pdf">Gerar PDF</button></div></div>
+  <div class="quente"><div><span>Leads quentes para a closer</span><b>${quente.pct}</b></div>
+    <p><strong>${quente.total} de ${base.length}</strong> ${base.length===1?'contato recebido':'contatos recebidos'} no período seguiram para a closer como cliente bom.<br>
+    Procuraram a Open: <strong>${percentual(...quente.entrada)}</strong> (${quente.entrada[0]} de ${quente.entrada[1]}) · Prospecção: <strong>${percentual(...quente.prosp)}</strong> (${quente.prosp[0]} de ${quente.prosp[1]})</p></div>
   <div class="kpis">
     <div class="kpi"><span>Em aberto agora</span><b>${abertos.length}</b><small>${divisaoAbertos(abertos)}</small></div>
     <div class="kpi"><span>Tentativas atrasadas</span><b>${atrasados}</b><small>nova tentativa com data vencida</small></div>
@@ -445,7 +460,7 @@ function telaRelatorios(){
       ${base.length?`<small style="color:var(--muted)">${pct(encBase,base.length)} dos recebidos foram encaminhados.</small>`:''}</div>
     <div class="cartao"><h2>Motivos de descarte</h2>${barras(contar(base.filter(c=>c.status==='descartado'),c=>c.motivo_descarte),'Nenhum contato descartado neste período.')}</div>
   </div>
-  <div class="cartao" style="margin-top:12px"><h2>Por SDR <small>quem cadastrou</small></h2>${tabela(['SDR','Cadastrados','Responderam','Bons','Encaminhados','Descartados'],porSdr,'Nenhum contato cadastrado neste período.')}</div>
+  <div class="cartao" style="margin-top:12px"><h2>Por SDR <small>quem cadastrou</small></h2>${tabela(['SDR','Cadastrados','Responderam','Bons','Encaminhados','Descartados','% quentes'],porSdr,'Nenhum contato cadastrado neste período.')}</div>
   <div class="dupla">
     <div class="cartao"><h2>Por vendedora <small>recebidos no período</small></h2>${tabela(['Vendedora','Recebidos','Bons','Médios','Ruins'],porVend,'Nenhuma vendedora cadastrada.')}</div>
     <div class="cartao"><h2>Por praça</h2>${tabela(['Praça','Dona','Contatos','Bons','Encaminhados'],porPraca,'Nenhum contato cadastrado neste período.')}</div>
@@ -487,9 +502,9 @@ function periodoPorExtenso(p){
 function gerarPDF(){
   const r = dadosRelatorio(), P = S.periodoRel;
   const daProsp = p => r.base.filter(c=>ehProspeccao(c)===p);
-  const linhaCanal = (nome,l) => [nome, l.length, r.conta(l,c=>c.teve_retorno), r.conta(l,c=>c.avaliacao==='bom'), r.conta(l,c=>c.status==='encaminhado'), r.conta(l,c=>c.status==='descartado')];
+  const linhaCanal = (nome,l) => [nome, l.length, r.conta(l,c=>c.teve_retorno), r.conta(l,c=>c.avaliacao==='bom'), r.conta(l,c=>c.status==='encaminhado'), r.conta(l,c=>c.status==='descartado'), percentual(r.conta(l,ehQuente),l.length)];
   const tab = (cab, linhas, vazio='Nenhum contato cadastrado neste período.') => linhas.length
-    ? `<table><thead><tr>${cab.map((t,i)=>`<th class="${i&&typeof linhas[0][i]==='number'?'n':''}">${t}</th>`).join('')}</tr></thead><tbody>${linhas.map(l=>`<tr>${l.map((v,i)=>`<td class="${i&&typeof v==='number'?'n':''}">${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+    ? `<table><thead><tr>${cab.map((t,i)=>`<th class="${i&&(typeof linhas[0][i]==='number'||/%$/.test(linhas[0][i]))?'n':''}">${t}</th>`).join('')}</tr></thead><tbody>${linhas.map(l=>`<tr>${l.map((v,i)=>`<td class="${i&&(typeof v==='number'||/%$/.test(v))?'n':''}">${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>`
     : `<p class="vazio">${vazio}</p>`;
   const bar = (linhas, vazio='Nenhum contato neste período.') => { if(!linhas.length) return `<p class="vazio">${vazio}</p>`;
     const max = Math.max(1,...linhas.map(l=>l[1]));
@@ -504,7 +519,10 @@ function gerarPDF(){
 body{margin:0;font:10.5px/1.45 Inter,"Segoe UI",Arial,sans-serif;color:#0A2742}
 .capa{background:linear-gradient(100deg,#0A1B2E,#0C2A47 45%,#1E4F8C);border-bottom:3px solid #2F6DB5;border-radius:10px;color:#fff;padding:18px 22px;display:flex;justify-content:space-between;align-items:center}
 .capa img{height:40px}.capa .t{text-align:right}.capa .t span{font-size:9px;letter-spacing:.2em;font-weight:800;color:#B8CBE0}
-.capa h1{margin:3px 0 2px;font-size:20px}.capa p{margin:0;font-size:11px;color:#DCE7F3}
+.capa h1{margin:3px 0 2px;font-size:20px}
+.quente{display:flex;align-items:center;gap:18px;margin-top:10px;border:1px solid #CBD6E2;border-left:5px solid #0E6EA8;border-radius:8px;padding:10px 14px}
+.quente span{display:block;font-size:8.5px;font-weight:800;letter-spacing:.1em;color:#66768A}.quente b{display:block;font-size:30px;line-height:1.1;color:#073B64}
+.quente p{margin:0;font-size:10.5px}.capa p{margin:0;font-size:11px;color:#DCE7F3}
 h2{font-size:12.5px;margin:18px 0 8px;padding-bottom:4px;border-bottom:2px solid #0E6EA8;color:#073B64}
 .ks{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
 .k{border:1px solid #E3E9F0;border-radius:8px;padding:9px 11px}
@@ -525,6 +543,7 @@ footer{margin-top:14px;padding-top:8px;border-top:1px solid #E3E9F0;color:#66768
 </style></head><body>
 <div class="capa"><img src="${logo}" alt="Open Soluções Tributárias"><div class="t"><span>HUB SDR · RELATÓRIO</span><h1>${esc(periodoPorExtenso(P))}</h1><p>Gerado em ${esc(quando(new Date().toISOString()))} por ${esc(S.me.nome||S.me.email)}</p></div></div>
 
+<div class="quente"><div><span>LEADS QUENTES PARA A CLOSER</span><b>${r.quente.pct}</b></div><p><strong>${r.quente.total} de ${total}</strong> contatos recebidos no período seguiram para a closer como cliente bom.<br>Procuraram a Open: <strong>${percentual(...r.quente.entrada)}</strong> (${r.quente.entrada[0]} de ${r.quente.entrada[1]}) · Prospecção: <strong>${percentual(...r.quente.prosp)}</strong> (${r.quente.prosp[0]} de ${r.quente.prosp[1]})</p></div>
 <div class="bloco"><h2>Resumo do período</h2>
 <div class="ks">
 ${k('Contatos recebidos', total, 'entrada e prospecção')}
@@ -541,11 +560,11 @@ ${(t=>k('Tempo até a vendedora', t.valor, t.detalhe))(tempoAteVendedora(r.enc))
 
 <div class="duas">
 <div class="bloco"><h2>Do contato ao encaminhamento</h2>${total?bar([['Recebidos',total],['Responderam',r.retorno],['Clientes bons',r.bons],['Encaminhados',r.encBase],['Descartados',r.desc]]):'<p class="vazio">Nenhum contato cadastrado neste período.</p>'}</div>
-<div class="bloco"><h2>Entrada x prospecção</h2>${tab(['Canal','Recebidos','Responderam','Bons','Encam.','Desc.'],[linhaCanal('Procuraram a Open',daProsp(false)),linhaCanal('Prospecção ativa',daProsp(true))])}</div>
+<div class="bloco"><h2>Entrada x prospecção</h2>${tab(['Canal','Recebidos','Resp.','Bons','Encam.','Desc.','% quentes'],[linhaCanal('Procuraram a Open',daProsp(false)),linhaCanal('Prospecção ativa',daProsp(true))])}</div>
 </div>
 
 <div class="bloco"><h2>Bons ainda não encaminhados · ${r.bonsParados.length}</h2>${tab(['Contato','Empresa','Cadastrado por','Praça','Cadastrado há'],r.bonsParados.slice(0,25).map(c=>[c.nome,c.empresa||'',membro(c.criado_por)||'RD Station / sistema',praca(c.praca_id)?.nome||'Sem praça',duracao((Date.now()-new Date(c.criado_em))/36e5)]),'Nenhum. Todo cliente bom já seguiu para a vendedora.')}${r.bonsParados.length>25?`<p class="nota">Mostrando 25 de ${r.bonsParados.length}.</p>`:''}</div>
-<div class="bloco"><h2>Por SDR</h2>${tab(['SDR','Cadastrados','Responderam','Bons','Encaminhados','Descartados'],r.porSdr,'Nenhum contato cadastrado neste período.')}</div>
+<div class="bloco"><h2>Por SDR</h2>${tab(['SDR','Cadastrados','Responderam','Bons','Encaminhados','Descartados','% quentes'],r.porSdr,'Nenhum contato cadastrado neste período.')}</div>
 <div class="duas">
 <div class="bloco"><h2>Por vendedora</h2>${tab(['Vendedora','Recebidos','Bons','Médios','Ruins'],r.porVend,'Nenhuma vendedora cadastrada.')}</div>
 <div class="bloco"><h2>Por praça</h2>${tab(['Praça','Dona','Contatos','Bons','Encam.'],r.porPraca)}</div>
@@ -555,7 +574,7 @@ ${(t=>k('Tempo até a vendedora', t.valor, t.detalhe))(tempoAteVendedora(r.enc))
 <div class="bloco"><h2>Por interesse</h2>${bar(contar(r.base,c=>INTERESSES[c.interesse]||(c.interesse||'Não informado')))}</div>
 </div>
 <div class="bloco"><h2>Motivos de descarte</h2>${bar(contar(r.base.filter(c=>c.status==='descartado'),c=>c.motivo_descarte),'Nenhum contato descartado neste período.')}</div>
-<p class="nota">Recebidos, respostas, avaliação, origem e descartes contam os contatos cadastrados no período. Vendedoras e tempo até a vendedora contam os encaminhamentos feitos no período; o tempo vai do cadastro ao encaminhamento, inclui a espera pela resposta do cliente e não conta a prospecção ativa. Tentativas atrasadas e sem andamento consideram todos os contatos em aberto hoje.</p>
+<p class="nota">Lead quente é o contato encaminhado à closer avaliado como cliente bom. Recebidos, respostas, avaliação, leads quentes, origem e descartes contam os contatos cadastrados no período. Vendedoras e tempo até a vendedora contam os encaminhamentos feitos no período; o tempo vai do cadastro ao encaminhamento, inclui a espera pela resposta do cliente e não conta a prospecção ativa. Tentativas atrasadas e sem andamento consideram todos os contatos em aberto hoje.</p>
 <footer><span>Open Soluções Tributárias · Hub SDR</span><span>${esc(periodoPorExtenso(P))}</span></footer>
 <script>addEventListener('load',()=>setTimeout(()=>print(),300));<\/script>
 </body></html>`;
