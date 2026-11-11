@@ -383,11 +383,15 @@ function telaFila(prosp){
 
 // ---------- relatórios (só gestão)
 const baseRelatorio = () => S.contatos.filter(c=>noPeriodo(c.criado_em,S.periodoRel));
-function tempoMedio(lista){
-  const horas = lista.filter(c=>c.encaminhado_em).map(c=>(new Date(c.encaminhado_em)-new Date(c.criado_em))/36e5);
-  if(!horas.length) return '–';
-  const m = horas.reduce((a,b)=>a+b,0)/horas.length;
-  return m<24 ? `${Math.max(1,Math.round(m))} h` : `${(m/24).toFixed(1).replace('.',',')} dias`;
+const duracao = horas => horas<1 ? `${Math.max(1,Math.round(horas*60))} min` : horas<24 ? `${Math.round(horas)} h` : `${(horas/24).toFixed(1).replace('.',',')} dias`;
+// Do cadastro ao clique em "Seguir para a vendedora", só de quem foi encaminhado.
+function tempoAteVendedora(lista){
+  const horas = lista.filter(c=>c.encaminhado_em).map(c=>Math.max(0,(new Date(c.encaminhado_em)-new Date(c.criado_em))/36e5)).sort((a,b)=>a-b);
+  if(!horas.length) return {valor:'–', detalhe:'nenhum encaminhamento no período'};
+  const meio = horas.length/2, mediana = horas.length%2 ? horas[Math.floor(meio)] : (horas[meio-1]+horas[meio])/2;
+  const media = horas.reduce((a,b)=>a+b,0)/horas.length;
+  const n = horas.length;
+  return {valor: duracao(mediana), detalhe: n===1 ? '1 encaminhado no período' : `metade dos ${n} encaminhados saiu em até esse tempo · média ${duracao(media)}`};
 }
 function tabela(cabecalho, linhas, vazio){
   if(!linhas.length) return `<div class="vazio">${vazio}</div>`;
@@ -412,10 +416,12 @@ function dadosRelatorio(){
     return [v.nome, l.length, conta(l,c=>c.avaliacao==='bom'), conta(l,c=>c.avaliacao==='medio'), conta(l,c=>c.avaliacao==='ruim')]; }).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
   const porPraca = [...new Set(base.map(c=>c.praca_id))].map(id=>{ const l=base.filter(c=>c.praca_id===id);
     return [praca(id)?.nome||'Sem praça', vendedora(praca(id)?.vendedora_id)?.nome||'', l.length, conta(l,c=>c.avaliacao==='bom'), conta(l,c=>c.status==='encaminhado')]; }).sort((a,b)=>b[2]-a[2]);
-  return {base,h,enc,conta,pct,abertos,atrasados,parados,retorno,bons,encBase,desc,porSdr,porVend,porPraca};
+  const bonsParados = abertos.filter(c=>c.avaliacao==='bom').sort((a,b)=>a.criado_em.localeCompare(b.criado_em));
+  return {bonsParados,base,h,enc,conta,pct,abertos,atrasados,parados,retorno,bons,encBase,desc,porSdr,porVend,porPraca};
 }
 function telaRelatorios(){
-  const {base,h,enc,conta,pct,abertos,atrasados,parados,retorno,bons,encBase,desc,porSdr,porVend,porPraca} = dadosRelatorio();
+  const {bonsParados,base,h,enc,conta,pct,abertos,atrasados,parados,retorno,bons,encBase,desc,porSdr,porVend,porPraca} = dadosRelatorio();
+  const tempo = tempoAteVendedora(enc);
   const P = {hoje:'Hoje',semana:'7 dias',mes:'Este mês',anterior:'Mês passado',tudo:'Tudo'};
   $('tela').innerHTML = `
   <div class="barra"><span class="rotulo">PERÍODO:</span>
@@ -425,7 +431,7 @@ function telaRelatorios(){
     <div class="kpi"><span>Em aberto agora</span><b>${abertos.length}</b><small>${conta(abertos,c=>c.status==='novo')} sem atendimento</small></div>
     <div class="kpi"><span>Tentativas atrasadas</span><b>${atrasados}</b><small>nova tentativa com data vencida</small></div>
     <div class="kpi"><span>Sem andamento há 3+ dias</span><b>${parados.length}</b><small>em aberto, sem nenhuma ação</small></div>
-    <div class="kpi"><span>Tempo até a vendedora</span><b>${tempoMedio(enc)}</b><small>média do cadastro ao encaminhamento</small></div>
+    <div class="kpi"><span>Tempo até a vendedora</span><b>${tempo.valor}</b><small>${tempo.detalhe}</small></div>
   </div>
   <div class="dupla">
     <div class="cartao"><h2>Do contato ao encaminhamento <small>contatos que chegaram no período</small></h2>
@@ -442,6 +448,10 @@ function telaRelatorios(){
     <div class="cartao"><h2>Por origem</h2>${barras(contar(base,c=>ORIGENS[c.origem]||c.origem))}</div>
     <div class="cartao"><h2>Por interesse</h2>${barras(contar(base,c=>INTERESSES[c.interesse]||(c.interesse?c.interesse:'Não informado')))}</div>
   </div>
+  <div class="cartao" style="margin-top:12px"><h2>Bons ainda não encaminhados <small>${bonsParados.length} ${bonsParados.length===1?'contato avaliado como bom':'contatos avaliados como bons'} e ainda em aberto</small></h2>
+    ${bonsParados.length?`<div style="overflow-x:auto"><table class="tabela"><thead><tr><th>Contato</th><th>Cadastrado por</th><th>Praça</th><th>Cadastrado há</th></tr></thead><tbody>
+    ${bonsParados.map(c=>`<tr class="link" data-a="abrir" data-v="${c.id}"><td><b>${esc(c.nome)}</b>${linhaContato(c)}</td><td>${esc(membro(c.criado_por)||'RD Station / sistema')}</td><td>${esc(praca(c.praca_id)?.nome||'Sem praça')}</td><td>${duracao((Date.now()-new Date(c.criado_em))/36e5)}</td></tr>`).join('')}
+    </tbody></table></div>`:'<div class="vazio">Nenhum. Todo cliente bom já seguiu para a vendedora.</div>'}</div>
   <div class="dupla">
     <div class="cartao"><h2>Sem andamento há 3+ dias <small>${parados.length}</small></h2>
       ${parados.length?`<div style="overflow-x:auto"><table class="tabela"><thead><tr><th>Contato</th><th>Situação</th><th>Última mudança</th></tr></thead><tbody>
@@ -520,7 +530,7 @@ ${k('Encaminhados', r.encBase, `${r.pct(r.encBase,total)} dos recebidos`)}
 ${k('Em aberto hoje', r.abertos.length, `${r.conta(r.abertos,c=>c.status==='novo')} sem atendimento`)}
 ${k('Tentativas atrasadas', r.atrasados, 'nova tentativa com data vencida')}
 ${k('Sem andamento há 3+ dias', r.parados.length, 'em aberto, sem nenhuma ação')}
-${k('Tempo até a vendedora', tempoMedio(r.enc), 'média do cadastro ao encaminhamento')}
+${(t=>k('Tempo até a vendedora', t.valor, t.detalhe))(tempoAteVendedora(r.enc))}
 </div></div>
 
 <div class="duas">
@@ -528,6 +538,7 @@ ${k('Tempo até a vendedora', tempoMedio(r.enc), 'média do cadastro ao encaminh
 <div class="bloco"><h2>Entrada x prospecção</h2>${tab(['Canal','Recebidos','Responderam','Bons','Encam.','Desc.'],[linhaCanal('Procuraram a Open',daProsp(false)),linhaCanal('Prospecção ativa',daProsp(true))])}</div>
 </div>
 
+<div class="bloco"><h2>Bons ainda não encaminhados · ${r.bonsParados.length}</h2>${tab(['Contato','Empresa','Cadastrado por','Praça','Cadastrado há'],r.bonsParados.slice(0,25).map(c=>[c.nome,c.empresa||'',membro(c.criado_por)||'RD Station / sistema',praca(c.praca_id)?.nome||'Sem praça',duracao((Date.now()-new Date(c.criado_em))/36e5)]),'Nenhum. Todo cliente bom já seguiu para a vendedora.')}${r.bonsParados.length>25?`<p class="nota">Mostrando 25 de ${r.bonsParados.length}.</p>`:''}</div>
 <div class="bloco"><h2>Por SDR</h2>${tab(['SDR','Cadastrados','Responderam','Bons','Encaminhados','Descartados'],r.porSdr,'Nenhum contato cadastrado neste período.')}</div>
 <div class="duas">
 <div class="bloco"><h2>Por vendedora</h2>${tab(['Vendedora','Recebidos','Bons','Médios','Ruins'],r.porVend,'Nenhuma vendedora cadastrada.')}</div>
@@ -538,7 +549,7 @@ ${k('Tempo até a vendedora', tempoMedio(r.enc), 'média do cadastro ao encaminh
 <div class="bloco"><h2>Por interesse</h2>${bar(contar(r.base,c=>INTERESSES[c.interesse]||(c.interesse||'Não informado')))}</div>
 </div>
 <div class="bloco"><h2>Motivos de descarte</h2>${bar(contar(r.base.filter(c=>c.status==='descartado'),c=>c.motivo_descarte),'Nenhum contato descartado neste período.')}</div>
-<p class="nota">Recebidos, respostas, avaliação, origem e descartes contam os contatos cadastrados no período. Vendedoras e tempo até a vendedora contam os encaminhamentos feitos no período. Tentativas atrasadas e sem andamento consideram todos os contatos em aberto hoje.</p>
+<p class="nota">Recebidos, respostas, avaliação, origem e descartes contam os contatos cadastrados no período. Vendedoras e tempo até a vendedora contam os encaminhamentos feitos no período; o tempo vai do cadastro ao encaminhamento e inclui a espera pela resposta do cliente. Tentativas atrasadas e sem andamento consideram todos os contatos em aberto hoje.</p>
 <footer><span>Open Soluções Tributárias · Hub SDR</span><span>${esc(periodoPorExtenso(P))}</span></footer>
 <script>addEventListener('load',()=>setTimeout(()=>print(),300));<\/script>
 </body></html>`;
