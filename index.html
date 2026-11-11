@@ -189,7 +189,7 @@ const INTERESSES = {sistema:'Sistema', consultoria:'Consultoria', publicos:'Órg
 const MOTIVOS = ['Fora do perfil','Sem interesse','Sem orçamento','Já é cliente','Fechou com concorrente','Contato inválido','Nunca respondeu','Outro'];
 const TIPOS = {ligacao:'Ligação', whatsapp:'WhatsApp', email:'E-mail', nota:'Anotação'};
 const UFS = 'AC AL AM AP BA CE DF ES GO MA MG MS MT PA PB PE PI PR RJ RN RO RR RS SC SE SP TO'.split(' ');
-const TITULOS = {painel:'Painel do SDR', contatos:'Contatos', relatorios:'Relatórios', vendedoras:'Vendedoras e praças', equipe:'Equipe'};
+const TITULOS = {painel:'Painel do SDR', prospeccao:'Prospecção', contatos:'Contatos', relatorios:'Relatórios', vendedoras:'Vendedoras e praças', equipe:'Equipe'};
 
 const sb = (SUPABASE_URL || window.__MOCK) ? supabase.createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 const S = {uid:null, me:null, membros:[], vendedoras:[], pracas:[], contatos:[], tela:'painel', periodo:'mes', periodoRel:'mes',
@@ -296,9 +296,11 @@ function telaEntrada(){
 // ---------- estrutura
 // Empresa, quando houver, e sempre um meio de contato.
 const linhaContato = c => (c.empresa?`<small><b>${esc(c.empresa)}</b></small>`:'')+`<small>${esc(c.telefone||c.email)}</small>`;
-function paraAtender(){
+// Prospecção ativa tem aba própria e não entra no Painel.
+const ehProspeccao = c => c.origem==='prospeccao';
+function paraAtender(prospeccao=false){
   const h = hoje();
-  return S.contatos.filter(c => c.status==='novo' || (['atendimento','sem_retorno'].includes(c.status) && c.retornar_em && c.retornar_em<=h))
+  return S.contatos.filter(c => ehProspeccao(c)===prospeccao && (c.status==='novo' || (['atendimento','sem_retorno'].includes(c.status) && c.retornar_em && c.retornar_em<=h)))
     .sort((a,b) => (a.retornar_em||a.criado_em.slice(0,10)).localeCompare(b.retornar_em||b.criado_em.slice(0,10)));
 }
 function desenhar(){
@@ -311,7 +313,7 @@ function desenhar(){
       <div class="sub"><span class="tag">HUB</span> SDR</div>
       <small>ATENDIMENTO COMERCIAL</small>
       <h4>ATENDIMENTO</h4>
-      ${item('painel','Painel',paraAtender().length)}${item('contatos','Contatos')}
+      ${item('painel','Painel',paraAtender().length)}${item('prospeccao','Prospecção',paraAtender(true).length)}${item('contatos','Contatos')}
       ${gestao?'<h4>GESTÃO</h4>'+item('relatorios','Relatórios')+'<h4>CADASTROS</h4>'+item('vendedoras','Vendedoras e praças')+item('equipe','Equipe',pendentes):''}
       <div class="conta"><b>${esc(S.me.nome||S.me.email)}</b><button data-a="sair">Sair</button></div>
     </aside>
@@ -325,7 +327,7 @@ function desenhar(){
     </main></div>`;
   desenharTela();
 }
-function desenharTela(){ if(S.me.papel!=='gestao' && ['relatorios','vendedoras','equipe'].includes(S.tela)) S.tela='painel'; ({painel:telaPainel, contatos:telaContatos, relatorios:telaRelatorios, vendedoras:telaVendedoras, equipe:telaEquipe})[S.tela](); }
+function desenharTela(){ if(S.me.papel!=='gestao' && ['relatorios','vendedoras','equipe'].includes(S.tela)) S.tela='painel'; ({painel:telaPainel, prospeccao:telaProspeccao, contatos:telaContatos, relatorios:telaRelatorios, vendedoras:telaVendedoras, equipe:telaEquipe})[S.tela](); }
 
 // ---------- painel
 function noPeriodo(ts, periodo=S.periodo){
@@ -343,32 +345,39 @@ function barras(linhas){
   return linhas.map(([n,v]) => `<div class="bar" title="${esc(n)}: ${v}"><span class="nome">${esc(n)}</span><span class="trilho"><i style="width:${v/max*100}%;min-width:${v?3:0}px"></i></span><b>${v}</b></div>`).join('');
 }
 function contar(lista,chave){ const m=new Map(); lista.forEach(c=>{const k=chave(c); if(k) m.set(k,(m.get(k)||0)+1)}); return [...m].sort((a,b)=>b[1]-a[1]); }
-function telaPainel(){
-  const noMes = S.contatos.filter(c=>noPeriodo(c.criado_em));
-  const enc = S.contatos.filter(c=>c.encaminhado_em && noPeriodo(c.encaminhado_em));
+const telaPainel = () => telaFila(false);
+const telaProspeccao = () => telaFila(true);
+function telaFila(prosp){
+  const daAba = S.contatos.filter(c=>ehProspeccao(c)===prosp);
+  const noMes = daAba.filter(c=>noPeriodo(c.criado_em));
+  const enc = daAba.filter(c=>c.encaminhado_em && noPeriodo(c.encaminhado_em));
   const comRetorno = noMes.filter(c=>c.teve_retorno).length, bons = noMes.filter(c=>c.avaliacao==='bom').length;
   const pct = (a,b) => b ? Math.round(a/b*100)+'%' : '0%';
-  const fila = paraAtender(), h = hoje();
+  const fila = paraAtender(prosp), h = hoje();
   const P = {hoje:'Hoje',semana:'7 dias',mes:'Este mês',anterior:'Mês passado'};
+  const T = prosp
+    ? {novo:'+ Nova prospecção', acao:'novaProspeccao', recebidos:'Prospecções', cadastrados:'cadastradas no período', retorno:'Contato feito', dos:'das prospecções', fila:'Para prospectar agora', vazio:'Tudo em dia. Nenhuma prospecção esperando contato.', chegou:'Cadastrada ', limite:50}
+    : {novo:'+ Novo contato', acao:'novoContato', recebidos:'Contatos recebidos', cadastrados:'cadastrados no período', retorno:'Tiveram retorno', dos:'dos recebidos', fila:'Para atender agora', vazio:'Tudo em dia. Nenhum contato esperando atendimento.', chegou:'Chegou ', limite:12};
   $('tela').innerHTML = `
   <div class="barra"><span class="rotulo">PERÍODO:</span>
     <div class="pilulas">${Object.entries(P).map(([k,v])=>`<button class="${S.periodo===k?'on':''}" data-a="periodo" data-v="${k}">${v}</button>`).join('')}</div>
-    <div class="dir-auto"><button class="btn pri" data-a="novoContato">+ Novo contato</button></div></div>
+    <div class="dir-auto"><button class="btn pri" data-a="${T.acao}">${T.novo}</button></div></div>
   <div class="kpis">
-    <div class="kpi"><span>Contatos recebidos</span><b>${noMes.length}</b><small>cadastrados no período</small></div>
-    <div class="kpi"><span>Tiveram retorno</span><b>${comRetorno}</b><small>${pct(comRetorno,noMes.length)} dos recebidos</small></div>
-    <div class="kpi"><span>Clientes bons</span><b>${bons}</b><small>${pct(bons,noMes.length)} dos recebidos</small></div>
+    <div class="kpi"><span>${T.recebidos}</span><b>${noMes.length}</b><small>${T.cadastrados}</small></div>
+    <div class="kpi"><span>${T.retorno}</span><b>${comRetorno}</b><small>${pct(comRetorno,noMes.length)} ${T.dos}</small></div>
+    <div class="kpi"><span>Clientes bons</span><b>${bons}</b><small>${pct(bons,noMes.length)} ${T.dos}</small></div>
     <div class="kpi"><span>Encaminhados</span><b>${enc.length}</b><small>para as vendedoras</small></div>
   </div>
-  <div class="cartao" style="margin-top:12px"><h2>Para atender agora <small>${fila.length} ${fila.length===1?'contato':'contatos'}</small></h2>
-    ${fila.length?`<div style="overflow-x:auto"><table class="tabela"><thead><tr><th>Contato</th><th>Situação</th><th>Origem</th><th>Quando</th></tr></thead><tbody>
-    ${fila.slice(0,12).map(c=>`<tr class="link" data-a="abrir" data-v="${c.id}"><td><b>${esc(c.nome)}</b>${linhaContato(c)}</td><td><span class="chip st-${c.status}">${STATUS[c.status]}</span></td><td>${esc(ORIGENS[c.origem]||c.origem)}</td>
-      <td>${c.retornar_em?`<span class="${c.retornar_em<h?'atrasado':''}">${c.retornar_em<h?'Atrasado: ':'Retornar hoje'}${c.retornar_em<h?dia(c.retornar_em):''}</span>`:'Chegou '+esc(quando(c.criado_em))}</td></tr>`).join('')}
-    </tbody></table></div>`:'<div class="vazio">Tudo em dia. Nenhum contato esperando atendimento.</div>'}
+  <div class="cartao" style="margin-top:12px"><h2>${T.fila} <small>${fila.length} ${fila.length===1?'contato':'contatos'}</small></h2>
+    ${fila.length?`<div style="overflow-x:auto"><table class="tabela"><thead><tr><th>Contato</th><th>Situação</th><th>${prosp?'Local':'Origem'}</th><th>Quando</th></tr></thead><tbody>
+    ${fila.slice(0,T.limite).map(c=>`<tr class="link" data-a="abrir" data-v="${c.id}"><td><b>${esc(c.nome)}</b>${linhaContato(c)}</td><td><span class="chip st-${c.status}">${prosp&&c.status==='sem_retorno'?'Sem contato':STATUS[c.status]}</span></td><td>${esc(prosp?[c.cidade,c.uf].filter(Boolean).join(' / '):(ORIGENS[c.origem]||c.origem))}</td>
+      <td>${c.retornar_em?`<span class="${c.retornar_em<h?'atrasado':''}">${c.retornar_em<h?'Atrasado: ':'Retornar hoje'}${c.retornar_em<h?dia(c.retornar_em):''}</span>`:T.chegou+esc(quando(c.criado_em))}</td></tr>`).join('')}
+    </tbody></table></div>${fila.length>T.limite?`<small style="color:var(--muted)">Mostrando ${T.limite} de ${fila.length}. Os demais estão em Contatos.</small>`:''}`:`<div class="vazio">${T.vazio}</div>`}
   </div>
   <div class="dupla">
     <div class="cartao"><h2>Encaminhados por vendedora</h2>${barras(contar(enc,c=>vendedora(c.vendedora_id)?.nome))}</div>
-    <div class="cartao"><h2>Contatos por origem</h2>${barras(contar(noMes,c=>ORIGENS[c.origem]||c.origem))}</div>
+    ${prosp?`<div class="cartao"><h2>Prospecções por interesse</h2>${barras(contar(noMes,c=>INTERESSES[c.interesse]||(c.interesse||'Não informado')))}</div>`
+           :`<div class="cartao"><h2>Contatos por origem</h2>${barras(contar(noMes,c=>ORIGENS[c.origem]||c.origem))}</div>`}
   </div>`;
 }
 
@@ -507,10 +516,10 @@ function duplicado(dados, ignorar){
   const t=digitos(dados.telefone), e=semAcento(dados.email).trim();
   return S.contatos.find(c => c.id!==ignorar && ((t.length>=8 && digitos(c.telefone)===t) || (e && semAcento(c.email).trim()===e)));
 }
-function formContato(c){
-  const novo=!c; c=c||{origem:'whatsapp'};
+function formContato(c, padrao){
+  const novo=!c; c=c||{origem:'whatsapp',...padrao};
   const j=$('janela');
-  j.innerHTML = `<form class="corpo" id="fmContato"><h3>${novo?'Novo contato':'Editar contato'}</h3><p class="sub">Informe ao menos o nome e um telefone ou e-mail.</p>
+  j.innerHTML = `<form class="corpo" id="fmContato"><h3>${novo?(c.origem==='prospeccao'?'Nova prospecção':'Novo contato'):'Editar contato'}</h3><p class="sub">Informe ao menos o nome e um telefone ou e-mail.</p>
   <div class="grade">
     <div><label for="c_nome">Nome *</label><input id="c_nome" required value="${esc(c.nome)}"></div>
     <div><label for="c_empresa">Empresa ou órgão</label><input id="c_empresa" value="${esc(c.empresa)}"></div>
@@ -598,7 +607,7 @@ function desenharFicha(){
   const aberto=!['encaminhado','descartado'].includes(c.status);
   let etapas='';
   if(aberto){
-    etapas=`<div class="etapa ${c.teve_retorno==null?'foco':''}"><h4>1. Teve retorno do cliente?</h4><div class="opcoes">
+    etapas=`<div class="etapa ${c.teve_retorno==null?'foco':''}"><h4>1. ${ehProspeccao(c)?'Contato feito?':'Teve retorno do cliente?'}</h4><div class="opcoes">
       <button class="btn ${c.teve_retorno===true?'on':''}" data-a="retorno" data-v="sim">Sim</button><button class="btn ${c.teve_retorno===false?'on':''}" data-a="retorno" data-v="nao">Ainda não</button></div>
       ${c.teve_retorno===false?`<div class="linha"><div><label for="m_data">Tentar de novo em</label><input type="date" id="m_data" value="${esc(c.retornar_em)}"></div></div>${b.motivo}`:''}</div>`;
     if(c.teve_retorno) etapas+=`<div class="etapa ${!c.avaliacao?'foco':''}"><h4>2. O cliente é bom?</h4><div class="opcoes">
@@ -716,10 +725,11 @@ const acoes={
   sair:async()=>{ await sb.auth.signOut(); S.uid=null; if($('ficha').open) $('ficha').close(); telaEntrada(); },
   trocaEntrada:()=>{ S.modoEntrada=S.modoEntrada==='criar'?'entrar':'criar'; telaEntrada(); },
   tela:v=>{ S.tela=v; desenhar(); },
-  periodo:v=>{ S.periodo=v; telaPainel(); },
+  periodo:v=>{ S.periodo=v; desenharTela(); },
   periodoRel:v=>{ S.periodoRel=v; telaRelatorios(); },
   exportar:()=>exportarPlanilha(),
   novoContato:async()=>{ await atualizarCadastros(); formContato(); },
+  novaProspeccao:async()=>{ await atualizarCadastros(); formContato(null,{origem:'prospeccao'}); },
   abrir:v=>abrirFicha(v),
   fecharFicha:()=>{ $('ficha').close(); S.aberto=null; },
   fecharJanela:()=>$('janela').close(),
